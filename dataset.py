@@ -7,6 +7,7 @@ class Cifar100(VisionDataset):
     def __init__(self, root, train, transform=None, target_transform=None):
         super(Cifar100, self).__init__(root, transform=transform, target_transform=target_transform)
         self.dataset = CIFAR100(root=root, train=train, download=True, transform=transform)
+        self.transform = transform
 
     def __getitem__(self, index):
         image, label = self.dataset[index]
