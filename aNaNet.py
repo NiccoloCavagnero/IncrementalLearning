@@ -24,7 +24,7 @@ class aNaNet(nn.Module):
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True)
         )
-        self.avgpool = nn.AdaptiveAvgPool2d(7, 7))
+        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
         self.classifier = nn.Sequential(
             nn.Dropout(),
             nn.Linear(128 * 7 * 7, 4096),
