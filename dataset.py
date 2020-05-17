@@ -1,5 +1,7 @@
 from torchvision.datasets import VisionDataset, CIFAR100
+from torchvision import transforms
 from torch.utils.data import Subset
+import numpy as np
 
 class Cifar100(VisionDataset):
     def __init__(self, root, train, transform=None, target_transform=None):
@@ -14,9 +16,13 @@ class Cifar100(VisionDataset):
                     59, 49, 67, 58, 93, 95, 83, 16, 65, 20, 30, 72, 56,
                     91, 62, 13, 3, 82, 10, 34, 88, 37, 60, 14, 57, 4,
                     15, 29, 64, 70, 99, 68, 22, 81]
-        self.batches = dict.fromkeys([x for x in range(10)])
-        for batch in self.batches:
-            self.batches[batch] = shuffled_classes[batch:(batch+10)]
+        # Define classes per batch
+        self.class_batches = dict.fromkeys(np.arange(10))
+        for i in range(10):
+            self.class_batches[i] = shuffled_classes[i*10:(i*10+10)]
+        
+        # Dictionary key:batch, value:batch_indexes
+        self.batch_indexes = self.__getBatchIndexes__
 
     def __getitem__(self, index):
         image, label = self.dataset[index]
@@ -25,18 +31,16 @@ class Cifar100(VisionDataset):
     def __len__(self):
         return len(self.dataset)
 
-    def __getClassIndexes__(self,classes):
-        '''
-        Returns indexes of images whose label is
-        in classes (-> Subset method)
-        '''
-        classes = set(classes)
-        indexes = []
+    def __getBatchIndexes__(self):
+        batches = dict.fromkeys(np.arange(10))
+        for i in range(10):
+            batches[i] = []
         for idx,item in enumerate(self.dataset):
-            if item[1] in classes:
-                indexes.append(idx)
-        return indexes
+            for i in range(10):
+                if item[1] in self.class_batches[i]:
+                    batches[i].append(idx)
+        return batches
 
-    def __getClassBatch__(self,batch_index):
-        indexes = self.__getClassIndexes__(self.batches[batch_index])
+    def __getBatch__(self,batch_index):
+        indexes = self.batch_indexes
         return Subset(self.dataset,indexes)
