@@ -21,7 +21,7 @@ class Cifar100(VisionDataset):
             self.class_batches[i] = shuffled_classes[i*10:(i*10+10)]
         
         # Dictionary key:batch, value:batch_indexes
-        self.batch_indexes = self.__BatchIndexes__
+        self.batch_indexes = self.__BatchIndexes__()
 
     def __getitem__(self, index):
         image, label = self.dataset[index]
