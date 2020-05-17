@@ -4,27 +4,23 @@ import os
 import numpy as np
 
 class Cifar100(VisionDataset):
-    def __init__(self, root, train, transform=None, target_transform=None):
-        super(Cifar100, self).__init__(root, transform=transform, target_transform=target_transform)
+    def _init_(self, root, train, transform=None, target_transform=None):
+        super(Cifar100, self)._init_(root, transform=None, target_transform=target_transform)
         self.dataset = CIFAR100(root=root, train=train, download=True, transform=transform)
         self.transform = transform
 
-    def __getitem__(self, index):
+    def _getitem_(self, index):
         image, label = self.dataset[index]
-
         if self.transform is not None:
             image = self.transform(image)
-
         return image, label
 
-    def __len__(self):
+    def _len_(self):
         return len(self.dataset)
 
-    def __getClassBatch__(self,classes):
-        '''
-        Returns indexes of images whose label is
-        in classes (-> Subset method)
-        '''
+    # Returns indexes of images whose label is
+    # in classes (-> Subset method)
+    def _getClassBatch_(self,classes):
         classes = set(classes)
         batch = []
         for idx,item in enumerate(self.dataset):
