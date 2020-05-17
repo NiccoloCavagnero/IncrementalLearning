@@ -41,4 +41,4 @@ class Cifar100(VisionDataset):
         return batches
 
     def __getBatchIndexes__(self,batch_index):
-        return self.batch_indexes
+        return self.batch_indexes[batch_index]
