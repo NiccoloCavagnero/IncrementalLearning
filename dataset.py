@@ -1,6 +1,5 @@
 from torchvision.datasets import VisionDataset, CIFAR100
 from torchvision import transforms
-from torch.utils.data import Subset
 import numpy as np
 
 class Cifar100(VisionDataset):
@@ -22,7 +21,7 @@ class Cifar100(VisionDataset):
             self.class_batches[i] = shuffled_classes[i*10:(i*10+10)]
         
         # Dictionary key:batch, value:batch_indexes
-        self.batch_indexes = self.__getBatchIndexes__
+        self.batch_indexes = self.__BatchIndexes__
 
     def __getitem__(self, index):
         image, label = self.dataset[index]
@@ -31,7 +30,7 @@ class Cifar100(VisionDataset):
     def __len__(self):
         return len(self.dataset)
 
-    def __getBatchIndexes__(self):
+    def __BatchIndexes__(self):
         batches = dict.fromkeys(np.arange(10))
         for i in range(10):
             batches[i] = []
@@ -41,6 +40,5 @@ class Cifar100(VisionDataset):
                     batches[i].append(idx)
         return batches
 
-    def __getBatch__(self,batch_index):
-        indexes = self.batch_indexes
-        return Subset(self.dataset,indexes)
+    def __getBatchIndexes__(self,batch_index):
+        return self.batch_indexes
