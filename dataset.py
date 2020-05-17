@@ -1,11 +1,8 @@
 from torchvision.datasets import VisionDataset, CIFAR100
-from PIL import Image
-import os
-import numpy as np
 
 class Cifar100(VisionDataset):
     def _init_(self, root, train, transform=None, target_transform=None):
-        super(Cifar100, self)._init_(root, transform=transform, target_transform=target_transform)
+        super(Cifar100, self)._init_(root, train=train, transform=transform, target_transform=target_transform)
         self.dataset = CIFAR100(root=root, train=train, download=True, transform=transform)
         self.transform = transform
 
