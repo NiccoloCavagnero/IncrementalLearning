@@ -24,9 +24,7 @@ class Cifar100(VisionDataset):
         self.batch_indexes = self.__BatchIndexes__()
         
         # Map labels from 0 to 99
-        self.label_map = {}
-        for idx,label in enumerate(shuffled_classes):
-            self.label_map[label] = idx
+        self.label_map = {k: v for v, k in enumerate(shuffled_classes)}
       
 
     def __getitem__(self, index):
