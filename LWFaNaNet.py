@@ -10,10 +10,9 @@ class aNaNet(nn.Module):
         # Parameters of net
         self.EPOCHS=EPOCHS
         self.LR=LR
-        self.exemplar_set = []
-        self.class_mean_set = []
         self.NUM_CLASSES = NUM_CLASSES
         self.TASK_SIZE = TASK_SIZE
+        self.old_model = None
         
         self.features = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=5, stride=1, padding=2),
