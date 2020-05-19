@@ -2,16 +2,17 @@ import torch
 import torch.nn as nn
 from copy import deepcopy
 
-class aNaNet(nn.Module):
+class LWFaNaNet(nn.Module):
 
-    def __init__(self, EPOCHS, LR, NUM_CLASSES, TASK_SIZE, old_model = None):
-        super(aNaNet, self).__init__()
+    def __init__(self, EPOCHS, LR, NUM_CLASSES, TASK_SIZE, DEVICE, old_model = None):
+        super(LWFaNaNet, self).__init__()
 
         # Parameters of net
         self.EPOCHS=EPOCHS
         self.LR=LR
         self.NUM_CLASSES = NUM_CLASSES
         self.TASK_SIZE = TASK_SIZE
+        self.DEVICE = DEVICE
         self.old_model = old_model
         
         self.features = nn.Sequential(
@@ -42,7 +43,7 @@ class aNaNet(nn.Module):
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=True),
             nn.Dropout(),
-            nn.Linear(4096, num_classes),
+            nn.Linear(4096, NUM_CLASSES),
         )    
         
     def forward(self, x):
@@ -62,6 +63,6 @@ def _updateNet_(self,net,n_classes):
         net.classifier[7].weight.data[:out_features] = weight
         net.classifier[7].bias.data[:out_features] = bias
 
-def LWFananet(progress=True, **kwargs):
-    model = aNaNet(**kwargs)
+def LWFananet(NUM_EPOCHS, LR, NUM_CLASSES, TASK_SIZE, DEVICE, progress=True):
+    model = LWFaNaNet(NUM_EPOCHS, LR, NUM_CLASSES, TASK_SIZE, DEVICE)
     return model
