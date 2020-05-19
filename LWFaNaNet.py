@@ -63,11 +63,6 @@ def _updateNet_(self,net,n_classes):
         net.classifier[7].weight.data[:out_features] = weight
         net.classifier[7].bias.data[:out_features] = bias
 
-        return net
-
-
 def LWFananet(progress=True, **kwargs):
     model = aNaNet(**kwargs)
     return model
-
-net = ananet()
