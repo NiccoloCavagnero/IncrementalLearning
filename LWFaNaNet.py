@@ -4,8 +4,17 @@ from copy import deepcopy
 
 class aNaNet(nn.Module):
 
-    def __init__(self, num_classes=100):
+    def __init__(self, EPOCHS, LR, NUM_CLASSES, TASK_SIZE):
         super(aNaNet, self).__init__()
+
+        # Parameters of net
+        self.EPOCHS=EPOCHS
+        self.LR=LR
+        self.exemplar_set = []
+        self.class_mean_set = []
+        self.NUM_CLASSES = NUM_CLASSES
+        self.TASK_SIZE = TASK_SIZE
+        
         self.features = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=5, stride=1, padding=2),
             nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
@@ -36,9 +45,7 @@ class aNaNet(nn.Module):
             nn.Dropout(),
             nn.Linear(4096, num_classes),
         )    
-        self.nets = []
-
-
+        
     def forward(self, x):
         x = self.features(x)
         x = self.avgpool(x)
