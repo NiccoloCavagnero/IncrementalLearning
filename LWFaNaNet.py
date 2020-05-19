@@ -59,7 +59,7 @@ def _updateNet_(self,net,n_classes):
         return net
 
 
-def ananet(progress=True, **kwargs):
+def LWFananet(progress=True, **kwargs):
     model = aNaNet(**kwargs)
     return model
 
