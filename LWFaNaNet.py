@@ -4,7 +4,7 @@ from copy import deepcopy
 
 class aNaNet(nn.Module):
 
-    def __init__(self, EPOCHS, LR, NUM_CLASSES, TASK_SIZE):
+    def __init__(self, EPOCHS, LR, NUM_CLASSES, TASK_SIZE, old_model = None):
         super(aNaNet, self).__init__()
 
         # Parameters of net
@@ -12,7 +12,7 @@ class aNaNet(nn.Module):
         self.LR=LR
         self.NUM_CLASSES = NUM_CLASSES
         self.TASK_SIZE = TASK_SIZE
-        self.old_model = None
+        self.old_model = old_model
         
         self.features = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=5, stride=1, padding=2),
