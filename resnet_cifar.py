@@ -87,6 +87,7 @@ class Bottleneck(nn.Module):
 class ResNet(nn.Module):
 
     def __init__(self, block, layers, num_classes=10):
+        self.old_model = None
         self.inplanes = 16
         super(ResNet, self).__init__()
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1,
@@ -141,14 +142,14 @@ class ResNet(nn.Module):
         ####################################################
         # Implements incremental learning method
         def Incremental_learning(self, numclass):
-        weight = self.fc.weight.data
-        bias = self.fc.bias.data
-        in_feature = self.fc.in_features
-        out_feature = self.fc.out_features
+            weight = self.fc.weight.data
+            bias = self.fc.bias.data
+            in_feature = self.fc.in_features
+            out_feature = self.fc.out_features
 
-        self.fc = nn.Linear(in_feature, numclass, bias=True)
-        self.fc.weight.data[:out_feature] = weight
-        self.fc.bias.data[:out_feature] = bias
+            self.fc = nn.Linear(in_feature, numclass, bias=True)
+            self.fc.weight.data[:out_feature] = weight
+            self.fc.bias.data[:out_feature] = bias
         ####################################################
 
 def resnet20(pretrained=False, **kwargs):
@@ -165,3 +166,4 @@ def resnet56(pretrained=False, **kwargs):
     n = 9
     model = ResNet(Bottleneck, [n, n, n], **kwargs)
     return model
+
