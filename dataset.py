@@ -29,7 +29,7 @@ class Cifar100(VisionDataset):
 
     def __getitem__(self, index):
         image, label = self.dataset[index]
-        return image, self.label_map[label]
+        return image, self.label_map[label], index
 
     def __len__(self):
         return len(self.dataset)
