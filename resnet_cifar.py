@@ -137,6 +137,19 @@ class ResNet(nn.Module):
         x = self.fc(x)
 
         return x
+        
+        ####################################################
+        # Implements incremental learning method
+        def Incremental_learning(self, numclass):
+        weight = self.fc.weight.data
+        bias = self.fc.bias.data
+        in_feature = self.fc.in_features
+        out_feature = self.fc.out_features
+
+        self.fc = nn.Linear(in_feature, numclass, bias=True)
+        self.fc.weight.data[:out_feature] = weight
+        self.fc.bias.data[:out_feature] = bias
+        ####################################################
 
 def resnet20(pretrained=False, **kwargs):
     n = 3
