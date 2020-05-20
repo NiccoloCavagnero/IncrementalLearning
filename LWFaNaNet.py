@@ -53,15 +53,15 @@ class LWFaNaNet(nn.Module):
         x = self.classifier(x)
         return x
 
-def _updateNet_(self,net,n_classes):
-        in_features = net.classifier[7].in_features
-        out_features = net.classifier[7].out_features
-        weight = net.classifier[7].weight.data
-        bias = net.classifier[7].bias.data
+def updateNet(net, n_classes):
+    in_features = net.classifier[7].in_features
+    out_features = net.classifier[7].out_features
+    weight = net.classifier[7].weight.data
+    bias = net.classifier[7].bias.data
 
-        net.classifier[7] = nn.Linear(in_features, n_classes)
-        net.classifier[7].weight.data[:out_features] = weight
-        net.classifier[7].bias.data[:out_features] = bias
+    net.classifier[7] = nn.Linear(in_features, n_classes)
+    net.classifier[7].weight.data[:out_features] = weight
+    net.classifier[7].bias.data[:out_features] = bias
 
 def LWFananet(NUM_EPOCHS, LR, NUM_CLASSES, TASK_SIZE, DEVICE, progress=True):
     model = LWFaNaNet(NUM_EPOCHS, LR, NUM_CLASSES, TASK_SIZE, DEVICE)
