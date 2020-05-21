@@ -112,7 +112,7 @@ class iCaRL():
           # Update network's last layer
           net = self.__updateNet__(net,n_classes)
 
-        optimizer = optim.SGD(net.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
+        optimizer = torch.optim.SGD(net.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
         
         net = net.to(self.device)
         
