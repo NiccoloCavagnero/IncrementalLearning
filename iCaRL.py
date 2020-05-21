@@ -285,6 +285,9 @@ class iCaRL():
         net = self.__updateRepresentation__(batch,new_exemplars,net,n_classes)
         self.__printTime__(t0)
           
+        exemplars = self.__reduceExemplarSet__(exemplars,n_classes)
+        self.__printTime__(t0)
+          
         new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
         exemplars.update(new_exemplars)
         new_exemplars = self.__formatExemplars__(exemplars)
