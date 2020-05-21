@@ -6,7 +6,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torch.nn import BCEWithLogitsLoss
 
-class iCaRL():
+class ICaRL():
     def __init__(self,memory=2000,device='cuda',params=None):
         self.memory = memory
         self.device = device
