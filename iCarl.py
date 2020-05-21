@@ -6,6 +6,9 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torch.nn import BCEWithLogitsLoss
 
+%matplotlib inline
+from matplotlib import pyplot as plt
+
 class iCaRL():
     def __init__(self,memory=2000,device='cuda',params=None):
         self.memory = memory
@@ -60,6 +63,33 @@ class iCaRL():
 
       return accuracy
 
+    def __FCClassifier__(self,data,net,n_classes):
+      print(f'\n ### FC Layer ###')
+      print('   # FC Layer Predicting ')
+      net.eval()
+      
+      running_corrects = 0.0
+      with torch.no_grad():
+        loader = DataLoader(data, batch_size=256, shuffle=False, num_workers=4, drop_last=False)
+
+        for images, labels, _ in loader:
+          images = images.to(self.device)
+          labels = labels.to(self.device)
+
+          outputs = torch.sigmoid(net(images))
+          # Get predictions
+          _, preds = torch.max(outputs.data, 1)
+          # Update Corrects
+          running_corrects += torch.sum(preds == labels.data).data.item()
+
+        # Calculate Accuracy
+        accuracy = running_corrects / len(data)
+      
+      print(f'   # FC Layer Accuracy: {accuracy}')
+
+      return accuracy
+
+
             
     def __updateRepresentation__(self,new_data,exemplars,net,n_classes):
         print('\n ### Updating Representation ###')
@@ -69,72 +99,70 @@ class iCaRL():
         MOMENTUM = self.params['MOMENTUM']
         WEIGHT_DECAY = self.params['WEIGHT_DECAY']
 
-        batch_classes = set(np.arange(n_classes-10,n_classes))
+        net = net.to(self.device)
 
         # Define Loss
         criterion = BCEWithLogitsLoss()
         
         # Concatenate new data with set of exemplars
-        if exemplars is not None:
-            data = new_data + exemplars
+        if len(exemplars) != 0:
+          data = new_data + exemplars
         else:
-            data = new_data
+          data = new_data
         
         # Define Dataloader
         loader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
 
         if n_classes != 10:
-            # Store network outputs with pre-update parameters
-            old_outputs = self.__getOldOutputs__(loader,net,n_classes-10)
+          # Store network outputs with pre-update parameters
+          old_outputs = self.__getOldOutputs__(loader,net,n_classes-10)
         
-            # Update network's last layer
-            net = self.__updateNet__(net,n_classes)
+          # Update network's last layer
+          net = self.__updateNet__(net,n_classes)
 
         optimizer = optim.SGD(net.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
         
-        net = net.to(self.device)
-        
         for epoch in range(EPOCHS):
 
-            # LR step down policy
-            if epoch == 48 or epoch == 62:
-              for g in optimizer.param_groups:
-                g['lr'] = g['lr']/5
+          # LR step down policy
+          if epoch == 48 or epoch == 62:
+            for g in optimizer.param_groups:
+              g['lr'] = g['lr']/5
             
-            net.train() # Sets module in training mode
+          net.train() # Sets module in training mode
 
-            running_loss = 0.0
+          running_loss = 0.0
 
-            for images, labels, indexes in loader:
-                indexes = indexes.to(self.device)
-                images = images.to(self.device)
-                labels = labels.to(self.device)
+          for images, labels, indexes in loader:
+            indexes = indexes.to(self.device)              
+            images = images.to(self.device)
+            labels = labels.to(self.device)
 
-                optimizer.zero_grad() # Zero-ing the gradients
+            optimizer.zero_grad() # Zero-ing the gradients
 
-                # Forward pass to the network
-                outputs = net(images)
+            # Forward pass to the network
+            outputs = net(images)
                 
-                # Compute Losses
-                labels = self.__getOneHot__(labels,n_classes)
-                class_loss = criterion(outputs[:,n_classes-10:], labels[:,n_classes-10:])
+            # Compute Losses
+            labels = self.__getOneHot__(labels,n_classes)
+            class_loss = criterion(outputs[:,n_classes-10:], labels[:,n_classes-10:])
 
-                if n_classes != 10:
-                    distill_loss = criterion(outputs[:,:n_classes-10], old_outputs[indexes])
-                    tot_loss = class_loss + distill_loss
-                else:
-                    tot_loss = class_loss
-                # Update Running Loss
-                running_loss += tot_loss.item() * images.size(0)
+            if n_classes != 10:
+              distill_loss = criterion(outputs[:,:n_classes-10], old_outputs[indexes])
+              tot_loss = class_loss + distill_loss
+            else:
+              tot_loss = class_loss              
+            # Update Running Loss
+            running_loss += tot_loss.item() * images.size(0)
 
-                # Compute gradients for each layer and update weights
-                tot_loss.backward() 
+            # Compute gradients for each layer and update weights
+            tot_loss.backward() 
 
-                optimizer.step() # update weights based on accumulated gradients
+            optimizer.step() # update weights based on accumulated gradients
             
-            # Train loss of current epoch
-            train_loss = running_loss / len(data)
-            print('\r   # Epoch: {}/{}, LR = {},  Train loss = {}'.format(epoch+1, EPOCHS, optimizer.param_groups[0]['lr'], round(train_loss,5)),end='')
+          # Train loss of current epoch
+          train_loss = running_loss / len(data)
+          print('\r   # Epoch: {}/{}, LR = {},  Train loss = {}'.format(epoch+1, EPOCHS, optimizer.param_groups[0]['lr'], round(train_loss,5)),end='')
         print()
 
         return net
@@ -148,14 +176,14 @@ class iCaRL():
         class_map = dict.fromkeys(np.arange(n_classes-10,n_classes))
         exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
         for label in class_map:
-            class_map[label] = []
-            exemplars[label] = []
+          class_map[label] = []
+          exemplars[label] = []
         
         # Fill class_map
         for item in data:
-            for label in class_map:
-                if item[1] == label:
-                    class_map[label].append(item)
+          for label in class_map:
+            if item[1] == label:
+              class_map[label].append(item)
         
         # Get and save net outputs for each class
         net.eval()
@@ -208,7 +236,7 @@ class iCaRL():
       return exemplars
 
     def __getOldOutputs__(self,loader,net,n_classes):
-      # Forward pass in the hold network
+      # Forward pass in the old network
       net.eval()
       q = torch.zeros(50000, n_classes).to(self.device)
       with torch.no_grad():
@@ -223,16 +251,16 @@ class iCaRL():
       return q
 
     def __updateNet__(self,net,n_classes):
-        in_features = net.fc.in_features
-        out_features = net.fc.out_features
-        weight = net.fc.weight.data
-        bias = net.fc.bias.data
+      in_features = net.fc.in_features
+      out_features = net.fc.out_features
+      weight = net.fc.weight.data
+      bias = net.fc.bias.data
 
-        net.fc = nn.Linear(in_features, n_classes)
-        net.fc.weight.data[:out_features] = weight
-        net.fc.bias.data[:out_features] = bias
+      net.fc = nn.Linear(in_features, n_classes)
+      net.fc.weight.data[:out_features] = weight
+      net.fc.bias.data[:out_features] = bias
 
-        return net
+      return net
 
     def __getOneHot__(self, target, n_classes):
       one_hot = torch.zeros(target.shape[0], n_classes).to(self.device)
@@ -247,11 +275,12 @@ class iCaRL():
           new_exemplars.append([item[0],item[1],item[2]])
 
       return new_exemplars
-      
+
     def __printTime__(self,t0):
       print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
-      
-    def run(self,batch_list,val_batch_list,net,plot=False):
+    
+    # Run iCaRL
+    def run(self,batch_list,val_batch_list,net):
       t0 = time.time()
       exemplars = {}
       new_exemplars = []
@@ -270,4 +299,18 @@ class iCaRL():
         accuracy_per_batch.append(self.__NMEClassifier__(val_batch_list[idx],exemplars,net,n_classes))
         self.__printTime__(t0)
 
+      return accuracy_per_batch
+    
+    # Run LwF
+    def runLwF(self,batch_list,val_batch_list,net):
+      t0 = time.time()
+      accuracy_per_batch = []
+      for idx, batch in enumerate(batch_list):
+        print(f'\n#### BATCH {idx+1} ####')
+        n_classes = (idx+1)*10
+        net = self.__updateRepresentation__(batch,{},net,n_classes)
+        self.__printTime__(t0)
+
+        accuracy_per_batch.append(self.__FCClassifier__(val_batch_list[idx],net,n_classes))
+        self.__printTime__(t0)
       return accuracy_per_batch
