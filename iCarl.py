@@ -17,7 +17,7 @@ class iCaRL():
       means = dict.fromkeys(np.arange(n_classes))
       net.eval()
 
-      print('  # Computing means ')
+      print('   # Computing means ')
       for key in exemplars:
         loader1 = DataLoader(exemplars[key], batch_size=256, shuffle=False, num_workers=4, drop_last=False)
         mean = torch.zeros((1,64),device=self.device)
@@ -34,7 +34,7 @@ class iCaRL():
 
       n_correct = 0.0
       
-      print('  # NME Predicting ')
+      print('   # NME Predicting ')
       for images, labels, _ in loader2:
         images = images.to(self.device)
         with torch.no_grad():
@@ -56,7 +56,7 @@ class iCaRL():
               n_correct += 1
       
       accuracy = n_correct/len(data)
-      print(f'  # NME Accuracy: {accuracy}')
+      print(f'   # NME Accuracy: {accuracy}')
 
       return accuracy
 
@@ -100,8 +100,6 @@ class iCaRL():
             if epoch == 48 or epoch == 62:
               for g in optimizer.param_groups:
                 g['lr'] = g['lr']/5
-
-            print('    ## Epoch: {}/{}, LR = {}'.format(epoch+1, EPOCHS, optimizer.param_groups[0]['lr']))
             
             net.train() # Sets module in training mode
 
@@ -136,8 +134,9 @@ class iCaRL():
             
             # Train loss of current epoch
             train_loss = running_loss / len(data)
-            print(f'    # Train loss: {train_loss}')
-        
+            print('\r   # Epoch: {}/{}, LR = {},  Train loss = {}'.format(epoch+1, EPOCHS, optimizer.param_groups[0]['lr'], round(train_loss,5)),end='')
+        print()
+
         return net
     
     def __constructExemplarSet__(self,data,n_classes,net):
@@ -161,7 +160,7 @@ class iCaRL():
         # Get and save net outputs for each class
         net.eval()
         for label in class_map:
-          print(f'  # Class: {label}')
+          print(f'\r   # Class: {label}',end='')
           mean = torch.zeros((1,64),device=self.device)
           class_outputs = []
           loader = DataLoader(class_map[label], batch_size=128, shuffle=False, num_workers=4, drop_last=False)
@@ -194,8 +193,9 @@ class iCaRL():
                
             exemplars[label].append(class_map[label][min_index])
             exemplars_output.append(class_outputs[min_index])
-            #class_outputs.pop(min_index)
-                
+            class_outputs.pop(min_index)
+        print()
+
         return exemplars
 
     def __reduceExemplarSet__(self,exemplars,n_classes):
@@ -247,34 +247,37 @@ class iCaRL():
           new_exemplars.append([item[0],item[1],item[2]])
 
       return new_exemplars
-
-    def run(self,batch_list,val_batch_list,net):
+      
+    def run(self,batch_list,val_batch_list,net,plot=False):
       t0 = time.time()
+      accuracy_per_batch = []
       for idx, batch in enumerate(batch_list):
         print(f'\n#### BATCH {idx+1} ####')
         n_classes = (idx+1)*10
         if idx == 0:
           net = self.__updateRepresentation__(batch,None,net,n_classes)
-          print(f'\n # Elapsed time: {round((time.time()-t0)/60,2)}')
+          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
           
           exemplars = self.__constructExemplarSet__(batch,n_classes,net)
           new_exemplars = self.__formatExemplars__(exemplars)
-          print(f'\n # Elapsed time: {round((time.time()-t0)/60,2)}')
+          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
           
-          self.__NMEClassifier__(val_batch_list[idx],exemplars,net,n_classes)
-          print(f'\n # Elapsed time: {round((time.time()-t0)/60,2)}')
+          accuracy_per_batch.append(self.__NMEClassifier__(val_batch_list[idx],exemplars,net,n_classes))
+          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
 
         else:
           net = self.__updateRepresentation__(batch,new_exemplars,net,n_classes)
-          print(f'\n # Elapsed time: {round((time.time()-t0)/60,2)}')
+          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
           
           exemplars = self.__reduceExemplarSet__(exemplars,n_classes)
-          print(f'\n # Elapsed time: {round((time.time()-t0)/60,2)}')
+          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
           
           new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
           exemplars.update(new_exemplars)
           new_exemplars = self.__formatExemplars__(exemplars)
-          print(f'\n # Elapsed time: {round((time.time()-t0)/60,2)}')
+          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
           
-          self.__NMEClassifier__(val_batch_list[idx],exemplars,net,n_classes)
-          print(f'\n # Elapsed time: {round((time.time()-t0)/60,2)}')
+          accuracy_per_batch.append(self.__NMEClassifier__(val_batch_list[idx],exemplars,net,n_classes))
+          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
+
+      return accuracy_per_batch
