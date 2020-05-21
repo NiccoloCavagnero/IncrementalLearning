@@ -248,36 +248,26 @@ class iCaRL():
 
       return new_exemplars
       
+    def __printTime__(self,t0):
+      print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
+      
     def run(self,batch_list,val_batch_list,net,plot=False):
       t0 = time.time()
+      exemplars = {}
+      new_exemplars = []
       accuracy_per_batch = []
       for idx, batch in enumerate(batch_list):
         print(f'\n#### BATCH {idx+1} ####')
         n_classes = (idx+1)*10
-        if idx == 0:
-          net = self.__updateRepresentation__(batch,None,net,n_classes)
-          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
+        net = self.__updateRepresentation__(batch,new_exemplars,net,n_classes)
+        self.__printTime__(t0)
           
-          exemplars = self.__constructExemplarSet__(batch,n_classes,net)
-          new_exemplars = self.__formatExemplars__(exemplars)
-          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
+        new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
+        exemplars.update(new_exemplars)
+        new_exemplars = self.__formatExemplars__(exemplars)
+        self.__printTime__(t0)
           
-          accuracy_per_batch.append(self.__NMEClassifier__(val_batch_list[idx],exemplars,net,n_classes))
-          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
-
-        else:
-          net = self.__updateRepresentation__(batch,new_exemplars,net,n_classes)
-          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
-          
-          exemplars = self.__reduceExemplarSet__(exemplars,n_classes)
-          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
-          
-          new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
-          exemplars.update(new_exemplars)
-          new_exemplars = self.__formatExemplars__(exemplars)
-          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
-          
-          accuracy_per_batch.append(self.__NMEClassifier__(val_batch_list[idx],exemplars,net,n_classes))
-          print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
+        accuracy_per_batch.append(self.__NMEClassifier__(val_batch_list[idx],exemplars,net,n_classes))
+        self.__printTime__(t0)
 
       return accuracy_per_batch
