@@ -31,7 +31,6 @@ class iCaRL():
         means[key] = mean / mean.norm()
 
       loader2 = DataLoader(data, batch_size=256, shuffle=False, num_workers=4, drop_last=False)
-
       n_correct = 0.0
       
       print('   # NME Predicting ')
@@ -85,9 +84,7 @@ class iCaRL():
       print(f'   # FC Layer Accuracy: {accuracy}')
 
       return accuracy
-
-
-            
+ 
     def __updateRepresentation__(self,new_data,exemplars,net,n_classes):
         print('\n ### Updating Representation ###')
         EPOCHS = self.params['EPOCHS']
@@ -95,8 +92,6 @@ class iCaRL():
         LR = self.params['LR']
         MOMENTUM = self.params['MOMENTUM']
         WEIGHT_DECAY = self.params['WEIGHT_DECAY']
-
-        net = net.to(self.device)
 
         # Define Loss
         criterion = BCEWithLogitsLoss()
@@ -118,6 +113,8 @@ class iCaRL():
           net = self.__updateNet__(net,n_classes)
 
         optimizer = optim.SGD(net.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
+        
+        net = net.to(self.device)
         
         for epoch in range(EPOCHS):
 
@@ -310,4 +307,5 @@ class iCaRL():
 
         accuracy_per_batch.append(self.__FCClassifier__(val_batch_list[idx],net,n_classes))
         self.__printTime__(t0)
+
       return accuracy_per_batch
