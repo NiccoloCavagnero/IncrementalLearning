@@ -6,9 +6,6 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torch.nn import BCEWithLogitsLoss
 
-%matplotlib inline
-from matplotlib import pyplot as plt
-
 class iCaRL():
     def __init__(self,memory=2000,device='cuda',params=None):
         self.memory = memory
