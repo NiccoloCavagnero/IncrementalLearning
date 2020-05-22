@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from torch.nn import BCEWithLogitsLoss
 import torch.optim as optim
 from torch.nn import functional as F
+from copy import deepcopy
 
 # One hot
 def get_one_hot(target,num_class):
@@ -117,7 +118,6 @@ class LwF():
 
                 # Compute loss
                 loss = self.D_loss(net, images, labels)
-                print('Dist_Loss: {}'.format(loss))
                
                 outputs = net(images)
                 # Update running corrects
