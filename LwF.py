@@ -52,7 +52,7 @@ class LwF():
     # Warm-up step #
     def beforeTrain(net):
         net.eval()
-            if net.num_classes > TASK_SIZE:
+            if net.num_classes > self.TASK_SIZE:
                 net.Incremental_learning(net.num_classes) # resnet32 Cifar
         net.train()        
         net.to(DEVICE)
@@ -111,7 +111,8 @@ class LwF():
 
                 # Compute loss
                 loss = D_loss(net, images, target)
-            
+                print('LOSS: {}'.format(loss))
+               
                 # Update running corrects
                 _, preds = torch.max(outputs.data, 1)
                 running_corrects += torch.sum(preds == labels.data).data.item()
@@ -120,21 +121,7 @@ class LwF():
                 tot_loss.backward()  
                 optimizer.step() # Update weights based on accumulated gradients
 
-        
-            train_loss = running_class_loss / len(batch)
             train_accuracy = running_corrects / len(batch)
-  
-            print(f' # Training Loss: {round(train_loss,5)} - Training Accuracy: {round(train_accuracy,5)}')
-
-        
-        # Compute losses
-        class_loss = running_class_loss/len(batch)
-        dist_loss = running_dist_loss/len(batch)
-        print(f' # Class_Loss: {round(class_loss, 5)} - Distillation_Loss: {round(dist_loss, 5)}')
-        
-        # Compute accuracy
-        accuracy = test(net, testBatchLoader, test_batch)
-        print(f' # Test_accuracy: {round(accuracy, 5)}')
 
         # Best validation model
         if accuracy > best_accuracy:
@@ -151,7 +138,7 @@ class LwF():
     # After train: update old_model and increment number of classes #
     def afterTrain(net):    
         # ADD number of tasks
-        net.num_classes += TASK_SIZE
+        net.num_classes += self.TASK_SIZE
         # Save old net 
         net.old_model = deepcopy(net)
         net.old_model.to(DEVICE)
