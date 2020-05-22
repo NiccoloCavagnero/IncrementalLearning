@@ -19,8 +19,9 @@ class LwF():
         self.params = params
         self.train_batches = train_batches
         self.test_batches = test_batches
+        self.old_model = None
         
-        
+    # Method to get dataloaders step by step to not break the memory #
     def dataloaders(self, train, test):
         train_loader = DataLoader(dataset=train,
                                   shuffle=True,
@@ -31,79 +32,129 @@ class LwF():
                                  batch_size=self.batchsize)
 
         return train_loader, test_loader
+    
+    # Define Distillation Loss #
+    def D_loss(net, images, target):
+        output = net(images)
+        target = get_one_hot(target, net.num_classes)
+        output = output.to(DEVICE)
+        target = target.to(DEVICE)
 
-def train(self,new_data,exemplars,net,n_classes):
+        if net.old_model == None:
+            return F.binary_cross_entropy_with_logits(output, target)
+        else:
+            old_target = torch.sigmoid(net.old_model(images))
+            old_task_size = old_target.shape[1]
+            target[..., :old_task_size] = old_target
+            return F.binary_cross_entropy_with_logits(output, target)
+    
+    # Warm-up step #
+    def beforeTrain(net):
+        net.eval()
+            if net.num_classes > TASK_SIZE:
+                net.Incremental_learning(net.num_classes) # resnet32 Cifar
+        net.train()        
+        net.to(DEVICE)
+    
+    # Method to compute val_accuracy #
+    def test(net, testloader,test_batch):
+        net.eval()
+        running_corrects = 0
+        for images, labels, indexes in (testloader):
+            images = images.to(DEVICE)
+            labels = labels.to(DEVICE)
+        
+            outputs = net(images)
+            _, preds = torch.max(outputs.data, 1)
+            running_corrects += torch.sum(preds == labels.data).data.item()
+    
+        accuracy = running_corrects / len(test_batch)
+        return accuracy
+    
+
+    # Train step #
+    def train(net, batch, test_batch, trainBatchLoader , testBatchLoader):
         print('\n ### Updating Representation ###')
         EPOCHS = self.params['EPOCHS']
         BATCH_SIZE = self.params['BATCH_SIZE']
         LR = self.params['LR']
         MOMENTUM = self.params['MOMENTUM']
-        WEIGHT_DECAY = self.params['WEIGHT_DECAY']
+        WEIGHT_DECAY = self.params['WEIGHT_DECAY']   
+        
+        optimizer = optim.SGD(net.parameters(), lr = LR, momentum = MOMENTUM, nesterov=True, weight_decay = WEIGHT_DECAY)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', patience=(STEP_SIZE-1), factor=GAMMA)
+        
+        best_accuracy = 0.0
+        best_epoch = 0
 
-        # Define Loss
-        criterion = BCEWithLogitsLoss()
-        
-        # Concatenate new data with set of exemplars
-        if len(exemplars) != 0:
-          data = new_data + exemplars
-        else:
-          data = new_data
-        
-        # Define Dataloader
-        loader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
+        net = net.to(DEVICE)
+   
+        for epoch in range(NUM_EPOCHS):
+            print('Starting epoch {}/{}, LR = {}, time: {} minutes'.format(epoch+1, NUM_EPOCHS, optimizer.param_groups[0]['lr'], round((time.time()-t0)/60,2)))
+            net.train() # Sets module in training mode
+       
+            # Initialize variables
+            running_class_loss = 0.0
+            running_dist_loss = 0.0
 
-        if n_classes != 10:
-          # Store network outputs with pre-update parameters
-          old_outputs = self.__getOldOutputs__(loader,net,n_classes-10)
-        
-          # Update network's last layer
-          net = self.__updateNet__(net,n_classes)
-
-        optimizer = torch.optim.SGD(net.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
-        
-        net = net.to(self.device)
-        
-        for epoch in range(EPOCHS):
-
-          # LR step down policy
-          if epoch == 48 or epoch == 62:
-            for g in optimizer.param_groups:
-              g['lr'] = g['lr']/5
+            running_loss = 0.0
+            running_corrects = 0
+       
+            for images,labels,indexes in trainBatchLoader:
             
-          net.train() # Sets module in training mode
+                images = images.to(DEVICE)
+                labels = labels.to(DEVICE)
 
-          running_loss = 0.0
+                # Zero-ing the gradients
+                optimizer.zero_grad() 
 
-          for images, labels, indexes in loader:
-            indexes = indexes.to(self.device)              
-            images = images.to(self.device)
-            labels = labels.to(self.device)
-
-            optimizer.zero_grad() # Zero-ing the gradients
-
-            # Forward pass to the network
-            outputs = net(images)
-                
-            # Compute Losses
-            labels = self.__getOneHot__(labels,n_classes)
-            class_loss = criterion(outputs[:,n_classes-10:], labels[:,n_classes-10:])
-
-            if n_classes != 10:
-              distill_loss = criterion(outputs[:,:n_classes-10], old_outputs[indexes])
-              tot_loss = class_loss + distill_loss
-            else:
-              tot_loss = class_loss              
-            # Update Running Loss
-            running_loss += tot_loss.item() * images.size(0)
-
-            # Compute gradients for each layer and update weights
-            tot_loss.backward() 
-
-            optimizer.step() # update weights based on accumulated gradients
+                # Compute loss
+                loss = D_loss(net, images, target)
             
-          # Train loss of current epoch
-          train_loss = running_loss / len(data)
-          print('\r   # Epoch: {}/{}, LR = {},  Train loss = {}'.format(epoch+1, EPOCHS, optimizer.param_groups[0]['lr'], round(train_loss,5)),end='')
-        print()
+                # Update running corrects
+                _, preds = torch.max(outputs.data, 1)
+                running_corrects += torch.sum(preds == labels.data).data.item()
 
-        return net
+                # Compute gradients for each layer and update weights
+                tot_loss.backward()  
+                optimizer.step() # Update weights based on accumulated gradients
+
+        
+            train_loss = running_class_loss / len(batch)
+            train_accuracy = running_corrects / len(batch)
+  
+            print(f' # Training Loss: {round(train_loss,5)} - Training Accuracy: {round(train_accuracy,5)}')
+
+        
+        # Compute losses
+        class_loss = running_class_loss/len(batch)
+        dist_loss = running_dist_loss/len(batch)
+        print(f' # Class_Loss: {round(class_loss, 5)} - Distillation_Loss: {round(dist_loss, 5)}')
+        
+        # Compute accuracy
+        accuracy = test(net, testBatchLoader, test_batch)
+        print(f' # Test_accuracy: {round(accuracy, 5)}')
+
+        # Best validation model
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            best_model = net
+            best_epoch = epoch
+            print(' ### Best_model updated\n')
+
+        scheduler.step(LR)
+
+    print(f'{round((time.time()-t0)/60,2)} minutes spent on training')
+    print(f'Best validation accuracy {best_accuracy} reached at epoch {(best_epoch+1)}')
+    
+    # After train: update old_model and increment number of classes #
+    def afterTrain(net):    
+        # ADD number of tasks
+        net.num_classes += TASK_SIZE
+        # Save old net 
+        net.old_model = deepcopy(net)
+        net.old_model.to(DEVICE)
+        net.old_model.eval()
+        
+    def run():
+        bhsfhvjsfvhjs
