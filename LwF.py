@@ -20,6 +20,7 @@ class LwF():
         self.train_batches = train_batches
         self.test_batches = test_batches
         self.old_model = None
+        self.TASK_SIZE = self.params['TASK_SIZE']
         
     # Method to get dataloaders step by step to not break the memory #
     def dataloaders(self, train, test):
@@ -156,5 +157,9 @@ class LwF():
         net.old_model.to(DEVICE)
         net.old_model.eval()
         
-    def run():
-        bhsfhvjsfvhjs
+    def run(net):
+        for trainB, testB in zip(self.train_batches, self.test_batches):
+            trainLoaders, testLoaders = dataloaders(self, trainB, testB)
+            beforeTrain(net)
+            train(net, trainB, testB, trainLoaders, testLoaders)
+            afterTrain(net)
