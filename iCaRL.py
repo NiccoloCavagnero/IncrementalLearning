@@ -88,7 +88,8 @@ class iCaRL():
       return accuracy
 
     def __SKLClassifier__(self,data,exemplars,net,n_classes,classifier):
-      print(f'\n ### {classifier} ###')
+      s = str(type(classifier)).split('.')[-1][1:-2]
+      print(f'\n ### {s} ###')
       net.eval()
       
       X = []
@@ -105,13 +106,13 @@ class iCaRL():
               X.append(np.array(output.cpu()))
               y.append(np.array(label))
     
-      print(f'   # {classifier} Fitting ')
+      print(f'   # {s} Fitting ')
       classifier.fit(X,y)
 
       loader = DataLoader(data, batch_size=256, shuffle=False, num_workers=4, drop_last=False)
       n_correct = 0.0
       
-      print(f'   # {classifier} Predicting ')
+      print(f'   # {s} Predicting ')
       for images, labels, _ in loader:
         images = images.to(self.device)
         with torch.no_grad():
@@ -126,7 +127,7 @@ class iCaRL():
               n_correct += 1
       
       accuracy = n_correct/len(data)
-      print(f'   # {classifier} Accuracy: {accuracy}')
+      print(f'   # {s} Accuracy: {accuracy}')
 
       return accuracy
  
