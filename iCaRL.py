@@ -88,7 +88,7 @@ class iCaRL():
       return accuracy
 
     def __SKLClassifier__(self,data,exemplars,net,n_classes,classifier):
-      s = str(type(classifier)).split('.')[-1][1:-2]
+      s = str(type(classifier)).split('.')[-1][:-2]
       print(f'\n ### {s} ###')
       net.eval()
       
