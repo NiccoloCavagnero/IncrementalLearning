@@ -1,12 +1,11 @@
 import numpy as np
 import time
+import random 
 
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from torch.nn import BCEWithLogitsLoss
-
-import random     
+from torch.nn import BCEWithLogitsLoss    
 
 class iCaRL():
     def __init__(self,memory=2000,device='cuda',params=None):
@@ -14,7 +13,7 @@ class iCaRL():
         self.device = device
         self.params = params
 
-    def __NMEClassifier__(self,data,exemplars,net,n_classes):
+    def __NMEClassifier__(self,data,exemplars,net,n_classes,mode='NME'):
       print(f'\n ### NME ###')
       means = dict.fromkeys(np.arange(n_classes))
       net.eval()
@@ -40,16 +39,23 @@ class iCaRL():
         images = images.to(self.device)
         with torch.no_grad():
           outputs = net(images,features=True)
-          outputs = outputs.to(self.device)
           predictions = []
           for output in outputs:
-            min_dist = 99999
             prediction = None
-            for key in means:
-              dist = torch.dist(means[key],output)
-              if dist < min_dist:
-                min_dist = dist
-                prediction = key
+            if mode == 'NME':
+              min_dist = 99999
+              for key in means:
+                dist = torch.dist(means[key],output)
+                if dist < min_dist:
+                  min_dist = dist
+                  prediction = key
+            elif mode == 'Cosine':
+              max_similarity = 0
+              for key in means:
+                cosine = torch.sum(means[key]*output)
+                if cosine > max_similarity:
+                  max_similarity = cosine
+                  prediction = key
             predictions.append(prediction)
           
           for label, prediction in zip(labels,predictions):
@@ -157,12 +163,10 @@ class iCaRL():
         
           # Update network's last layer
           net = self.__updateNet__(net,n_classes)
-
+          
         optimizer = torch.optim.SGD(net.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
-        #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,mode='min',patience=2,factor=0.5)
         net = net.to(self.device)
         
-        best_loss = 99
         for epoch in range(EPOCHS):
          
           # LR step down policy
@@ -187,22 +191,20 @@ class iCaRL():
             labels = self.__getOneHot__(labels,n_classes)
 
             # Compute Losses
-            class_loss = criterion(outputs[:,n_classes-10:], labels[:,n_classes-10:])
-            if n_classes != 10:
-              distill_loss = criterion(outputs[:,:n_classes-10], old_outputs[indexes])
-              tot_loss = class_loss + distill_loss
+            if n_classes == 10:
+              tot_loss = criterion(outputs[:,n_classes-10:], labels[:,n_classes-10:])
             else:
-              tot_loss = class_loss              
+              targets = torch.cat((old_outputs[indexes],labels[:,n_classes-10:]),1)
+              tot_loss = criterion(outputs,targets)            
             # Update Running Loss
             running_loss += tot_loss.item() * images.size(0)
 
             tot_loss.backward() 
             optimizer.step() 
+
           # Train loss of current epoch
           train_loss = running_loss / len(data)
-          if train_loss < best_loss:
-            best_loss = train_loss
-          #scheduler.step(best_loss)
+
           print('\r   # Epoch: {}/{}, LR = {},  Train loss = {}'.format(epoch+1, EPOCHS, optimizer.param_groups[0]['lr'], round(train_loss,5)),end='')
         print()
 
@@ -265,9 +267,10 @@ class iCaRL():
               images = images.to(self.device)
               outputs = net(images,features=True)
               for output in outputs:
+                output = output.to(self.device)
                 class_outputs.append(output)
                 mean += output
-            mean = (mean/len(class_map[label])).to(self.device)
+            mean = (mean/len(class_map[label]))
             means[label] = mean / mean.norm()
           
           # Construct exemplar list for current class
@@ -276,7 +279,6 @@ class iCaRL():
             min_distance = 99999
             exemplar_sum = sum(exemplars_output)
             for idx, tensor in enumerate(class_outputs):
-              tensor = tensor.to(self.device)
               temp_tensor = (exemplar_sum + tensor) / (len(exemplars_output)+1)
               temp_tensor = temp_tensor / temp_tensor.norm()
               
@@ -287,7 +289,7 @@ class iCaRL():
                
             exemplars[label].append(class_map[label][min_index])
             exemplars_output.append(class_outputs[min_index])
-            class_outputs.pop(min_index)
+            #class_outputs.pop(min_index)
         print()
 
         return exemplars
@@ -346,7 +348,7 @@ class iCaRL():
       print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
     
     # Run ICaRL
-    def run(self,batch_list,val_batch_list,net,herding=True,classifier='NME'):
+    def run(self,batch_list,val_batch_list,net,herding=True,classifier='NME',NME_mode='NME'):
       t0 = time.time()
       exemplars = {}
       new_exemplars = []
@@ -368,8 +370,8 @@ class iCaRL():
         new_exemplars = self.__formatExemplars__(exemplars)
         self.__printTime__(t0)
         
-        if classifier is 'NME':
-          accuracy_per_batch.append(self.__NMEClassifier__(val_batch_list[idx],exemplars,net,n_classes))
+        if classifier == 'NME':
+          accuracy_per_batch.append(self.__NMEClassifier__(val_batch_list[idx],exemplars,net,n_classes,NME_mode))
         else:
           accuracy_per_batch.append(self.__SKLClassifier__(val_batch_list[idx],exemplars,net,n_classes,classifier))
         self.__printTime__(t0)
