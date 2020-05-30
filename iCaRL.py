@@ -35,7 +35,8 @@ class iCaRL():
         else:
           items = exemplars[key]
         mean = torch.zeros((1,64),device=self.device)
-        for images, _, _ in items:
+        loader = DataLoader(items, batch_size=256, shuffle=False, num_workers=4, drop_last=False)
+        for images, _, _ in loader:
           with torch.no_grad():
             images = images.to(self.device)
             outputs = net(images,features=True)
@@ -45,9 +46,9 @@ class iCaRL():
         means[key] = mean / mean.norm()
 
       n_correct = 0.0
-      
+      loader = DataLoader(data, batch_size=256, shuffle=False, num_workers=4, drop_last=False)
       print('   # NME Predicting ')
-      for images, labels, _ in data:
+      for images, labels, _ in loader:
         images = images.to(self.device)
         with torch.no_grad():
           outputs = net(images,features=True)
@@ -272,13 +273,14 @@ class iCaRL():
           
           # Compute class means
           with torch.no_grad():
-            images = np.array(class_map[label])[:,0]
-            images = images.to(self.device)
-            outputs = net(images,features=True)
-            for output in outputs:
-              output = output.to(self.device)
-              class_outputs.append(output)
-              mean += output
+            loader = DataLoader(data, batch_size=256, shuffle=False, num_workers=4, drop_last=False)
+            for images, _, _ in loader:
+                images = images.to(self.device)
+                outputs = net(images,features=True)
+                for output in outputs:
+                    output = output.to(self.device)
+                    class_outputs.append(output)
+                    mean += output
             mean = (mean/len(class_map[label]))
             means[label] = mean / mean.norm()
           
