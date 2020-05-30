@@ -281,7 +281,7 @@ class iCaRL():
                     output = output.to(self.device)
                     class_outputs.append(output)
                     mean += output
-            mean = mean/len(class_map[label]
+            mean = mean/len(class_map[label])
             means[label] = mean / mean.norm()
           
           # Construct exemplar list for current class
