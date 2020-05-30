@@ -270,7 +270,6 @@ class iCaRL():
           print(f'\r   # Class: {label+1}',end='')
           mean = torch.zeros((1,64),device=self.device)
           class_outputs = []
-          loader = DataLoader(class_map[label], batch_size=256, shuffle=False, num_workers=4, drop_last=False)
           
           # Compute class means
           with torch.no_grad():
