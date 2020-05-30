@@ -35,23 +35,21 @@ class iCaRL():
         else:
           items = exemplars[key]
         mean = torch.zeros((1,64),device=self.device)
-        loader = DataLoader(items, batch_size=256, shuffle=False, num_workers=4, drop_last=False)
-        for images, _, _ in loader:
+        for images, _, _ in items:
           with torch.no_grad():
             images = images.to(self.device)
-            outputs = net(images,features=True)
+            outputs = net(images.unsqueeze(0),features=True)
             for output in outputs:
               mean += output
         mean = mean/len(items)
         means[key] = mean / mean.norm()
 
       n_correct = 0.0
-      loader = DataLoader(data, batch_size=256, shuffle=False, num_workers=4, drop_last=False)
       print('   # NME Predicting ')
-      for images, labels, _ in loader:
+      for images, labels, _ in data:
         images = images.to(self.device)
         with torch.no_grad():
-          outputs = net(images,features=True)
+          outputs = net(images.unsqueeze(0),features=True)
           predictions = []
           for output in outputs:
             prediction = None
@@ -87,13 +85,11 @@ class iCaRL():
       
       running_corrects = 0.0
       with torch.no_grad():
-        loader = DataLoader(data, batch_size=256, shuffle=False, num_workers=4, drop_last=False)
-
-        for images, labels, _ in loader:
+        for images, labels, _ in data:
           images = images.to(self.device)
           labels = labels.to(self.device)
 
-          outputs = torch.sigmoid(net(images))
+          outputs = torch.sigmoid(net(images.unsqueeze(0)))
           # Get predictions
           _, preds = torch.max(outputs.data, 1)
           # Update Corrects
@@ -119,7 +115,7 @@ class iCaRL():
         for images, labels, _ in exemplars[key]:
           with torch.no_grad():
             images = images.to(self.device)
-            outputs = net(images,features=True)
+            outputs = net(images.unsqueeze(0),features=True)
             for output,label in zip(outputs,labels):
               X.append(np.array(output.cpu()))
               y.append(np.array(label))
@@ -273,10 +269,9 @@ class iCaRL():
           
           # Compute class means
           with torch.no_grad():
-            loader = DataLoader(class_map[label], batch_size=256, shuffle=False, num_workers=4, drop_last=False)
-            for images, _, _ in loader:
+            for images, _, _ in class_map[label]:
                 images = images.to(self.device)
-                outputs = net(images,features=True)
+                outputs = net(images.unsqueeze(0),features=True)
                 for output in outputs:
                     output = output.to(self.device)
                     class_outputs.append(output)
