@@ -127,7 +127,6 @@ class iCaRL():
       classifier.fit(X,y)
 
       n_correct = 0.0
-      
       print(f'   # {s} Predicting ')
       for images, labels, _ in data:
         images = images.to(self.device)
