@@ -150,7 +150,7 @@ class iCaRL():
 
       return accuracy
  
-    def __updateRepresentation__(self,new_data,exemplars,net,n_classes):
+    def __updateRepresentation__(self,new_data,exemplars,net,n_classes,FT):
         print('\n ### Update Representation ###')
         EPOCHS = self.params['EPOCHS']
         BATCH_SIZE = self.params['BATCH_SIZE']
@@ -203,14 +203,22 @@ class iCaRL():
             # Get One Hot Encoding for the labels
             labels = self.__getOneHot__(labels,n_classes)
 
-            # Compute Losses
-            if n_classes == 10:
-              tot_loss = criterion(outputs[:,n_classes-10:], labels[:,n_classes-10:])
-            else:
-              targets = torch.cat((old_outputs[indexes],labels[:,n_classes-10:]),1)
-              tot_loss = criterion(outputs,targets)            
-            # Update Running Loss
-            running_loss += tot_loss.item() * images.size(0)
+            # Compute Losses - FINE TUNING -
+            if FT == True:
+                tot_loss = criterion(outputs[:,n_classes-10:], labels[:,n_classes-10:])
+                # Update Running Loss
+                running_loss += tot_loss.item() * images.size(0)
+
+            # Compute Losses - NO FINE TUNING -
+            if FT == False:
+                if n_classes == 10:
+                    tot_loss = criterion(outputs[:,n_classes-10:], labels[:,n_classes-10:])
+                else:
+                    targets = torch.cat((old_outputs[indexes],labels[:,n_classes-10:]),1)
+                    tot_loss = criterion(outputs,targets)   
+
+                # Update Running Loss         
+                running_loss += tot_loss.item() * images.size(0)
 
             tot_loss.backward() 
             optimizer.step() 
@@ -392,13 +400,13 @@ class iCaRL():
       return accuracy_per_batch
     
     # Run LwF
-    def runLwF(self,batch_list,val_batch_list,net):
+    def runLwF(self,batch_list,val_batch_list,net,FT):
       t0 = time.time()
       accuracy_per_batch = []
       for idx, batch in enumerate(batch_list):
         print(f'\n##### BATCH {idx+1} #####')
         n_classes = (idx+1)*10
-        net = self.__updateRepresentation__(batch,{},net,n_classes)
+        net = self.__updateRepresentation__(batch,{},net,n_classes,FT)
         self.__printTime__(t0)
 
         accuracy_per_batch.append(self.__FCClassifier__(val_batch_list[idx],net,n_classes))
