@@ -31,24 +31,23 @@ class iCaRL():
       print('   # Computing means ')
       for key in exemplars:
         if key in range(n_classes-10,n_classes):
-          loader = DataLoader(batch_map[key], batch_size=256, shuffle=False, num_workers=4, drop_last=False)
+          items = batch_map[key]
         else:
-          loader = DataLoader(exemplars[key], batch_size=256, shuffle=False, num_workers=4, drop_last=False)
+          items = exemplars[key]
         mean = torch.zeros((1,64),device=self.device)
-        for images, _, _ in loader:
+        for images, _, _ in items:
           with torch.no_grad():
             images = images.to(self.device)
             outputs = net(images,features=True)
             for output in outputs:
               mean += output
-        mean = mean/len(exemplars[key])
+        mean = mean/len(items)
         means[key] = mean / mean.norm()
 
-      loader = DataLoader(data, batch_size=256, shuffle=False, num_workers=4, drop_last=False)
       n_correct = 0.0
       
       print('   # NME Predicting ')
-      for images, labels, _ in loader:
+      for images, labels, _ in data:
         images = images.to(self.device)
         with torch.no_grad():
           outputs = net(images,features=True)
@@ -115,9 +114,8 @@ class iCaRL():
       y = []
       print('   # Extract features')
       for key in exemplars:
-        loader = DataLoader(exemplars[key], batch_size=256, shuffle=False, num_workers=4, drop_last=False)
         mean = torch.zeros((1,64),device=self.device)
-        for images, labels, _ in loader:
+        for images, labels, _ in exemplars[key]:
           with torch.no_grad():
             images = images.to(self.device)
             outputs = net(images,features=True)
@@ -128,11 +126,10 @@ class iCaRL():
       print(f'   # {s} Fitting ')
       classifier.fit(X,y)
 
-      loader = DataLoader(data, batch_size=256, shuffle=False, num_workers=4, drop_last=False)
-      n_correct = 0.0
+    n_correct = 0.0
       
       print(f'   # {s} Predicting ')
-      for images, labels, _ in loader:
+      for images, labels, _ in data:
         images = images.to(self.device)
         with torch.no_grad():
           outputs = net(images,features=True)
@@ -277,13 +274,13 @@ class iCaRL():
           
           # Compute class means
           with torch.no_grad():
-            for images, _, _ in loader:
-              images = images.to(self.device)
-              outputs = net(images,features=True)
-              for output in outputs:
-                output = output.to(self.device)
-                class_outputs.append(output)
-                mean += output
+            images = class_map[label][:,0]
+            images = images.to(self.device)
+            outputs = net(images,features=True)
+            for output in outputs:
+              output = output.to(self.device)
+              class_outputs.append(output)
+              mean += output
             mean = (mean/len(class_map[label]))
             means[label] = mean / mean.norm()
           
