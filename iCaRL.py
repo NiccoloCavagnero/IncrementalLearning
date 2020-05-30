@@ -13,14 +13,27 @@ class iCaRL():
         self.device = device
         self.params = params
 
-    def __NMEClassifier__(self,data,exemplars,net,n_classes,mode='NME'):
+    def __NMEClassifier__(self,data,batch,exemplars,net,n_classes,mode='NME'):
       print(f'\n ### NME ###')
       means = dict.fromkeys(np.arange(n_classes))
       net.eval()
 
+      batch_map = dict.fromkeys(np.arange(n_classes-10,n_classes))       
+      for label in batch_map:
+        batch_map[label] = []
+        
+      # Fill batch_map
+      for item in batch:          
+        for label in batch_map:
+          if item[1] == label:
+            batch_map[label].append(item)
+
       print('   # Computing means ')
       for key in exemplars:
-        loader = DataLoader(exemplars[key], batch_size=256, shuffle=False, num_workers=4, drop_last=False)
+        if key in range(n_classes-10,n_classes):
+          loader = DataLoader(batch_map[key], batch_size=256, shuffle=False, num_workers=4, drop_last=False)
+        else:
+          loader = DataLoader(exemplars[key], batch_size=256, shuffle=False, num_workers=4, drop_last=False)
         mean = torch.zeros((1,64),device=self.device)
         for images, _, _ in loader:
           with torch.no_grad():
@@ -371,7 +384,7 @@ class iCaRL():
         self.__printTime__(t0)
         
         if classifier == 'NME':
-          accuracy_per_batch.append(self.__NMEClassifier__(val_batch_list[idx],exemplars,net,n_classes,NME_mode))
+          accuracy_per_batch.append(self.__NMEClassifier__(val_batch_list[idx],batch,exemplars,net,n_classes,NME_mode))
         else:
           accuracy_per_batch.append(self.__SKLClassifier__(val_batch_list[idx],exemplars,net,n_classes,classifier))
         self.__printTime__(t0)
