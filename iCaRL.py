@@ -150,7 +150,7 @@ class iCaRL():
 
       return accuracy
  
-    def __updateRepresentation__(self,new_data,exemplars,net,n_classes,finetune=False):
+    def __updateRepresentation__(self,new_data,exemplars,net,n_classes,fineTune=False):
         print('\n ### Update Representation ###')
         EPOCHS = self.params['EPOCHS']
         BATCH_SIZE = self.params['BATCH_SIZE']
@@ -204,7 +204,7 @@ class iCaRL():
             labels = self.__getOneHot__(labels,n_classes)
 
             # Compute Losses
-            if n_classes == 10 or finetune:
+            if n_classes == 10 or fineTune:
                 tot_loss = criterion(outputs[:,n_classes-10:], labels[:,n_classes-10:])
             else:
                 targets = torch.cat((old_outputs[indexes],labels[:,n_classes-10:]),1)
@@ -394,13 +394,13 @@ class iCaRL():
       return accuracy_per_batch
     
     # Run LwF
-    def runLwF(self,batch_list,val_batch_list,net,finetune=False):
+    def runLwF(self,batch_list,val_batch_list,net,fineTune=False):
       t0 = time.time()
       accuracy_per_batch = []
       for idx, batch in enumerate(batch_list):
         print(f'\n##### BATCH {idx+1} #####')
         n_classes = (idx+1)*10
-        net = self.__updateRepresentation__(batch,{},net,n_classes,finetune)
+        net = self.__updateRepresentation__(batch,{},net,n_classes,fineTune)
         self.__printTime__(t0)
 
         accuracy_per_batch.append(self.__FCClassifier__(val_batch_list[idx],net,n_classes))
