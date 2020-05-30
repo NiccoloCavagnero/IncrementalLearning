@@ -273,7 +273,7 @@ class iCaRL():
           
           # Compute class means
           with torch.no_grad():
-            loader = DataLoader(data, batch_size=256, shuffle=False, num_workers=4, drop_last=False)
+            loader = DataLoader(class_map[label], batch_size=256, shuffle=False, num_workers=4, drop_last=False)
             for images, _, _ in loader:
                 images = images.to(self.device)
                 outputs = net(images,features=True)
@@ -281,7 +281,7 @@ class iCaRL():
                     output = output.to(self.device)
                     class_outputs.append(output)
                     mean += output
-            mean = (mean/len(class_map[label]))
+            mean = mean/len(class_map[label]
             means[label] = mean / mean.norm()
           
           # Construct exemplar list for current class
