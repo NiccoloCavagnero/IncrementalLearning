@@ -310,6 +310,7 @@ class iCaRL():
                
             exemplars[label].append(class_map[label][min_index])
             exemplars_output.append(class_outputs[min_index])
+            class_map[label].pop(min_index)
             class_outputs.pop(min_index)
         print()
 
