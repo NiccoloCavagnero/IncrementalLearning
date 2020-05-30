@@ -5,7 +5,8 @@ import numpy as np
 class Cifar100(VisionDataset):
     def __init__(self, root, train, transform=None, target_transform=None):
         super(Cifar100, self).__init__(root, transform=transform, target_transform=target_transform)
-        self.dataset = CIFAR100(root=root, train=train, download=True, transform=transform)
+        self.dataset = CIFAR100(root=root, train=train, download=True, transform=None)
+        self.transform = transform
         
         shuffled_classes = [61, 34, 79, 90,  9, 17, 68, 54, 74, 99, 75, 46, 83, 57, 77, 28, 52,
         40, 93, 12, 82, 89, 19, 43, 95, 48, 85, 86,  0, 53, 58, 63, 65, 94,
@@ -28,6 +29,10 @@ class Cifar100(VisionDataset):
 
     def __getitem__(self, index):
         image, label = self.dataset[index]
+        
+        if self.transform is not None:
+            image = self.transform(image)
+            
         return image, self.label_map[label], index
 
     def __len__(self):
