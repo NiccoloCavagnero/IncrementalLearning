@@ -272,7 +272,7 @@ class iCaRL():
           
           # Compute class means
           with torch.no_grad():
-            images = class_map[label][:,0]
+            images = np.array(class_map[label])[:,0]
             images = images.to(self.device)
             outputs = net(images,features=True)
             for output in outputs:
