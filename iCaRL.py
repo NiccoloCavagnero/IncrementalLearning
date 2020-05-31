@@ -382,7 +382,7 @@ class iCaRL():
       print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
     
     # Run ICaRL
-    def run(self,fixed_batches,train_batches,test_batches,net,herding=True,classifier='NME',NME_mode='NME'):
+    def run(self,train_batches,test_batches,net,herding=True,classifier='NME',NME_mode='NME'):
       t0 = time.time()
       exemplars = {}
       new_exemplars = []
@@ -397,15 +397,15 @@ class iCaRL():
         self.__printTime__(t0)
         
         if herding:
-          new_exemplars = self.__constructExemplarSet__(fixed_batches[idx],n_classes,net)
+          new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
         else:
-          new_exemplars = self.__randomExemplarSet__(fixed_batches[idx],n_classes)
+          new_exemplars = self.__randomExemplarSet__(batch,n_classes)
         exemplars.update(new_exemplars)
         new_exemplars = self.__formatExemplars__(exemplars)
         self.__printTime__(t0)
         
         if classifier == 'NME':
-          accuracy_per_batch.append(self.__NMEClassifier__(test_batches[idx],fixed_batches[idx],exemplars,net,n_classes,NME_mode))
+          accuracy_per_batch.append(self.__NMEClassifier__(test_batches[idx],batch,exemplars,net,n_classes,NME_mode))
         else:
           accuracy_per_batch.append(self.__SKLClassifier__(test_batches[idx],exemplars,net,n_classes,classifier))
         self.__printTime__(t0)
