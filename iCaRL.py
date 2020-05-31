@@ -175,9 +175,6 @@ class iCaRL():
         loader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
 
         if n_classes != 10:
-          # Store network outputs with pre-update parameters
-          #old_outputs = self.__getOldOutputs__(loader,net,n_classes-10)
-        
           # Update network's last layer
           net = self.__updateNet__(net,n_classes)
           
@@ -239,10 +236,8 @@ class iCaRL():
       exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes)) 
       fixed_exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))       
       for label in class_map:
-        class_map[label] = []
-        fixed_map[label] = []
-        exemplars[label] = []
-        fixed_exemplars[label] = []
+          class_map[label], fixed_map[label] = [], []
+          exemplars[label], fixed_exemplars[label] = [], []
         
       # Fill class_map
       for item, fixed_item in zip(data,fixed_data):
@@ -271,10 +266,8 @@ class iCaRL():
         fixed_exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
 
         for label in class_map:
-          class_map[label] = []
-          fixed_map[label] = []
-          exemplars[label] = []
-          fixed_exemplars[label] = []
+          class_map[label], fixed_map[label] = [], []
+          exemplars[label], fixed_exemplars[label] = [], []
         
         # Fill class_map
         for item, fixed_item in zip(data,fixed_data):
@@ -301,7 +294,7 @@ class iCaRL():
                     output = output.to(self.device)
                     class_outputs.append(output)
                     mean += output
-            mean = mean/len(class_map[label])
+            mean = mean/len(fixed_map[label])
             means[label] = mean / mean.norm()
           
           # Construct exemplar list for current class
@@ -337,22 +330,7 @@ class iCaRL():
         fixed_exemplars[key] = fixed_exemplars[key][:m]
       
       return exemplars, fixed_exemplars
-    '''
-    def __getOldOutputs__(self,loader,net,n_classes):
-      # Forward pass in the old network
-      net.eval()
-      q = torch.zeros(50000, n_classes).to(self.device)
-      with torch.no_grad():
-        for images, _, indexes in loader:
-          images = images.to(self.device)
-          indexes = indexes.to(self.device)
-          
-          g = torch.sigmoid(net(images))
-          q[indexes] = g
-      q = q.to(self.device)
-
-      return q
-    '''
+    
     def __getOldOutputs__(self,images,indexes,net,n_classes):
       # Forward pass in the old network
       net.eval()
