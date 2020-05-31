@@ -235,42 +235,54 @@ class iCaRL():
 
       # Initialize list of means, images and exemplars for each class
       class_map = dict.fromkeys(np.arange(n_classes-10,n_classes))
-      exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))        
+      fixed_map = dict.fromkeys(np.arange(n_classes-10,n_classes))
+      exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes)) 
+      fixed_exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))       
       for label in class_map:
         class_map[label] = []
+        fixed_map[label] = []
         exemplars[label] = []
+        fixed_exemplars[label] = []
         
       # Fill class_map
-      for item in data:          
+      for item, fixed_item in zip(data,fixed_data):
         for label in class_map:
           if item[1] == label:
-            class_map[label].append(item)
+            class_map[label].append(item) 
+            fixed_map[label].append(fixed_item)
 
       for label in range(n_classes-10,n_classes):
         indexes = random.sample(range(len(class_map[label])),m)   
         for i in indexes:
           exemplars[label].append(class_map[label][i])
+          fixed_exemplars[label].append(fixed_map[label][i])
 
-      return exemplars
+      return exemplars, fixed_exemplars
     
-    def __constructExemplarSet__(self,data,n_classes,net):
+    def __constructExemplarSet__(self,data,fixed_data,n_classes,net):
         print('\n ### Construct Exemplar Set ###')
         m = int(self.memory/n_classes)
 
         # Initialize list of means, images and exemplars for each class
         means = dict.fromkeys(np.arange(n_classes-10,n_classes))
         class_map = dict.fromkeys(np.arange(n_classes-10,n_classes))
+        fixed_map = dict.fromkeys(np.arange(n_classes-10,n_classes))
         exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
+        fixed_exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
 
         for label in class_map:
           class_map[label] = []
+          fixed_map[label] = []
           exemplars[label] = []
+          fixed_exemplars[label] = []
         
         # Fill class_map
-        for item in data:
+        for item, fixed_item in zip(data,fixed_data):
           for label in class_map:
             if item[1] == label:
               class_map[label].append(item)
+              fixed_map[label].append(fixed_item)
+
         
         # Get and save net outputs for each class
         net.eval()
@@ -281,7 +293,7 @@ class iCaRL():
           
           # Compute class means
           with torch.no_grad():
-            loader = DataLoader(class_map[label], batch_size=512, shuffle=False, num_workers=4, drop_last=False)
+            loader = DataLoader(fixed_map[label], batch_size=512, shuffle=False, num_workers=4, drop_last=False)
             for images, _, _ in loader:
                 images = images.to(self.device)
                 outputs = net(images,features=True)
@@ -307,21 +319,24 @@ class iCaRL():
                 min_index = idx
                
             exemplars[label].append(class_map[label][min_index])
+            fixed_exemplars[label].append(fixed_map[label][min_index])
             exemplars_output.append(class_outputs[min_index])
             class_map[label].pop(min_index)
+            fixed_map[label].pop(min_index)
             class_outputs.pop(min_index)
         print()
 
-        return exemplars
+        return exemplars, fixed_exemplars
 
-    def __reduceExemplarSet__(self,exemplars,n_classes):
+    def __reduceExemplarSet__(self,exemplars,fixed_exemplars,n_classes):
       print('\n ### Reduce Exemplar Set ###')
       m = int(self.memory/n_classes)
       print(f'   # Exemplars per class: {m}')
       for key in exemplars:
         exemplars[key] = exemplars[key][:m]
+        fixed_exemplars[key] = fixed_exemplars[key][:m]
       
-      return exemplars
+      return exemplars, fixed_exemplars
     '''
     def __getOldOutputs__(self,loader,net,n_classes):
       # Forward pass in the old network
@@ -382,32 +397,38 @@ class iCaRL():
       print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
     
     # Run ICaRL
-    def run(self,train_batches,test_batches,net,herding=True,classifier='NME',NME_mode='NME'):
+    def run(self,fixed_batches,train_batches,test_batches,net,herding=True,classifier='NME',NME_mode='NME'):
       t0 = time.time()
-      exemplars = {}
+      exemplars, fixed_exemplars = {}, {}
       new_exemplars = []
       accuracy_per_batch = []
       for idx, batch in enumerate(train_batches):
         print(f'\n##### BATCH {idx+1} #####')
         n_classes = (idx+1)*10
+
+        # Update Representation
         net = self.__updateRepresentation__(batch,new_exemplars,net,n_classes)
         self.__printTime__(t0)
 
-        exemplars = self.__reduceExemplarSet__(exemplars,n_classes)
+        # Exemplars managing
+        exemplars, fixed_exemplars = self.__reduceExemplarSet__(exemplars,fixed_exemplars,n_classes)
         self.__printTime__(t0)
         
         if herding:
-          new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
+          new_exemplars, new_fixed_exemplars = self.__constructExemplarSet__(batch,fixed_batches[idx],n_classes,net)
         else:
-          new_exemplars = self.__randomExemplarSet__(batch,n_classes)
+          new_exemplars, new_fixed_exemplars = self.__randomExemplarSet__(batch,fixed_batches[idx],n_classes)
         exemplars.update(new_exemplars)
+        fixed_exemplars.update(new_fixed_exemplars)
+
         new_exemplars = self.__formatExemplars__(exemplars)
         self.__printTime__(t0)
         
+        # Classifier
         if classifier == 'NME':
-          accuracy_per_batch.append(self.__NMEClassifier__(test_batches[idx],batch,exemplars,net,n_classes,NME_mode))
+          accuracy_per_batch.append(self.__NMEClassifier__(test_batches[idx],fixed_batches[idx],fixed_exemplars,net,n_classes,NME_mode))
         else:
-          accuracy_per_batch.append(self.__SKLClassifier__(test_batches[idx],exemplars,net,n_classes,classifier))
+          accuracy_per_batch.append(self.__SKLClassifier__(test_batches[idx],fixed_exemplars,net,n_classes,classifier))
         self.__printTime__(t0)
 
       return accuracy_per_batch
