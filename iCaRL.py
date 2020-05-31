@@ -1,6 +1,7 @@
 import numpy as np
 import time
 import random 
+from copy import deepcopy
 
 import torch
 from torch import nn
@@ -34,22 +35,26 @@ class iCaRL():
           items = batch_map[key]
         else:
           items = exemplars[key]
+        
+        loader = DataLoader(items, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
         mean = torch.zeros((1,64),device=self.device)
-        for images, _, _ in items:
+        for images, _, _ in loader:
           with torch.no_grad():
             images = images.to(self.device)
-            outputs = net(images.unsqueeze(0),features=True)
+            outputs = net(images,features=True)
             for output in outputs:
               mean += output
         mean = mean/len(items)
         means[key] = mean / mean.norm()
 
+      loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
+
       n_correct = 0.0
       print('   # NME Predicting ')
-      for images, labels, _ in data:
+      for images, labels, _ in loader:
         images = images.to(self.device)
         with torch.no_grad():
-          outputs = net(images.unsqueeze(0),features=True)
+          outputs = net(images,features=True)
           predictions = []
           for output in outputs:
             prediction = None
@@ -85,7 +90,8 @@ class iCaRL():
       
       running_corrects = 0.0
       with torch.no_grad():
-        for images, labels, _ in data:
+        loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
+        for images, labels, _ in loader:
           images = images.to(self.device)
           labels = labels.to(self.device)
 
@@ -111,11 +117,12 @@ class iCaRL():
       y = []
       print('   # Extract features')
       for key in exemplars:
+        loader = DataLoader(exemplars[key], batch_size=512, shuffle=False, num_workers=4, drop_last=False)
         mean = torch.zeros((1,64),device=self.device)
-        for images, labels, _ in exemplars[key]:
+        for images, labels, _ in loader:
           with torch.no_grad():
             images = images.to(self.device)
-            outputs = net(images.unsqueeze(0),features=True)
+            outputs = net(images,features=True)
             for output,label in zip(outputs,labels):
               X.append(np.array(output.cpu()))
               y.append(np.array(label))
@@ -123,9 +130,11 @@ class iCaRL():
       print(f'   # {s} Fitting ')
       classifier.fit(X,y)
 
+      loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
+
       n_correct = 0.0
       print(f'   # {s} Predicting ')
-      for images, labels, _ in data:
+      for images, labels, _ in loader:
         images = images.to(self.device)
         with torch.no_grad():
           outputs = net(images,features=True)
@@ -160,12 +169,14 @@ class iCaRL():
         else:
           data = new_data
         
+        old_net = deepcopy(net)
+        
         # Define Dataloader
         loader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
 
         if n_classes != 10:
           # Store network outputs with pre-update parameters
-          old_outputs = self.__getOldOutputs__(loader,net,n_classes-10)
+          #old_outputs = self.__getOldOutputs__(loader,net,n_classes-10)
         
           # Update network's last layer
           net = self.__updateNet__(net,n_classes)
@@ -200,6 +211,7 @@ class iCaRL():
             if n_classes == 10 or fineTune:
                 tot_loss = criterion(outputs[:,n_classes-10:], labels[:,n_classes-10:])
             else:
+                old_outputs = self.__getOldOutputs__(images,indexes,old_net,n_classes-10)
                 targets = torch.cat((old_outputs[indexes],labels[:,n_classes-10:]),1)
                 tot_loss = criterion(outputs,targets)   
 
@@ -269,9 +281,10 @@ class iCaRL():
           
           # Compute class means
           with torch.no_grad():
-            for images, _, _ in class_map[label]:
+            loader = DataLoader(class_map[label], batch_size=512, shuffle=False, num_workers=4, drop_last=False)
+            for images, _, _ in loader:
                 images = images.to(self.device)
-                outputs = net(images.unsqueeze(0),features=True)
+                outputs = net(images,features=True)
                 for output in outputs:
                     output = output.to(self.device)
                     class_outputs.append(output)
@@ -309,7 +322,7 @@ class iCaRL():
         exemplars[key] = exemplars[key][:m]
       
       return exemplars
-
+    '''
     def __getOldOutputs__(self,loader,net,n_classes):
       # Forward pass in the old network
       net.eval()
@@ -321,6 +334,20 @@ class iCaRL():
           
           g = torch.sigmoid(net(images))
           q[indexes] = g
+      q = q.to(self.device)
+
+      return q
+    '''
+    def __getOldOutputs__(self,images,indexes,net,n_classes):
+      # Forward pass in the old network
+      net.eval()
+      q = torch.zeros(50000, n_classes).to(self.device)
+      with torch.no_grad():
+        images = images.to(self.device)
+        indexes = indexes.to(self.device)
+          
+        g = torch.sigmoid(net(images))
+        q[indexes] = g
       q = q.to(self.device)
 
       return q
@@ -355,12 +382,12 @@ class iCaRL():
       print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
     
     # Run ICaRL
-    def run(self,batch_list,val_batch_list,net,herding=True,classifier='NME',NME_mode='NME'):
+    def run(self,fixed_batches,train_batches,test_batches,net,herding=True,classifier='NME',NME_mode='NME'):
       t0 = time.time()
       exemplars = {}
       new_exemplars = []
       accuracy_per_batch = []
-      for idx, batch in enumerate(batch_list):
+      for idx, batch in enumerate(train_batches):
         print(f'\n##### BATCH {idx+1} #####')
         n_classes = (idx+1)*10
         net = self.__updateRepresentation__(batch,new_exemplars,net,n_classes)
@@ -370,32 +397,32 @@ class iCaRL():
         self.__printTime__(t0)
         
         if herding:
-          new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
+          new_exemplars = self.__constructExemplarSet__(fixed_batches[idx],n_classes,net)
         else:
-          new_exemplars = self.__randomExemplarSet__(batch,n_classes)
+          new_exemplars = self.__randomExemplarSet__(fixed_batches[idx],n_classes)
         exemplars.update(new_exemplars)
         new_exemplars = self.__formatExemplars__(exemplars)
         self.__printTime__(t0)
         
         if classifier == 'NME':
-          accuracy_per_batch.append(self.__NMEClassifier__(val_batch_list[idx],batch,exemplars,net,n_classes,NME_mode))
+          accuracy_per_batch.append(self.__NMEClassifier__(test_batches[idx],fixed_batches[idx],exemplars,net,n_classes,NME_mode))
         else:
-          accuracy_per_batch.append(self.__SKLClassifier__(val_batch_list[idx],exemplars,net,n_classes,classifier))
+          accuracy_per_batch.append(self.__SKLClassifier__(test_batches[idx],exemplars,net,n_classes,classifier))
         self.__printTime__(t0)
 
       return accuracy_per_batch
     
     # Run LwF
-    def runLwF(self,batch_list,val_batch_list,net,fineTune=False):
+    def runLwF(self,train_batches,test_batches,net,fineTune=False):
       t0 = time.time()
       accuracy_per_batch = []
-      for idx, batch in enumerate(batch_list):
+      for idx, batch in enumerate(train_batches):
         print(f'\n##### BATCH {idx+1} #####')
         n_classes = (idx+1)*10
         net = self.__updateRepresentation__(batch,{},net,n_classes,fineTune)
         self.__printTime__(t0)
 
-        accuracy_per_batch.append(self.__FCClassifier__(val_batch_list[idx],net,n_classes))
+        accuracy_per_batch.append(self.__FCClassifier__(test_batches[idx],net,n_classes))
         self.__printTime__(t0)
 
       return accuracy_per_batch
