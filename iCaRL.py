@@ -95,7 +95,7 @@ class iCaRL():
           images = images.to(self.device)
           labels = labels.to(self.device)
 
-          outputs = torch.sigmoid(net(images.unsqueeze(0)))
+          outputs = torch.sigmoid(net(images))
           # Get predictions
           _, preds = torch.max(outputs.data, 1)
           # Update Corrects
