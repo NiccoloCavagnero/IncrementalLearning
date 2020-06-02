@@ -301,10 +301,7 @@ class iCaRL():
           exemplars_output = []
           for i in range(m):
             min_distance = 99999
-            if len(exemplars_output) == 1:
-              exemplar_sum = exemplars_output[0] 
-            else:
-              exemplar_sum = sum(exemplars_output)
+            exemplar_sum = sum(exemplars_output)
             for idx, tensor in enumerate(class_outputs):
               temp_tensor = (exemplar_sum + tensor) / (len(exemplars_output)+1)
               temp_tensor = temp_tensor / temp_tensor.norm()
