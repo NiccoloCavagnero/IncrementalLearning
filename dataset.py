@@ -1,17 +1,15 @@
 from torchvision.datasets import VisionDataset, CIFAR100
 from torchvision import transforms
 from torch.utils.data import DataLoader
+import torch
 import numpy as np
 
 def pixel_mean(root):
     dataset = CIFAR100(root=root,train=True,transform=transforms.ToTensor())
-    mean = None
+    mean = torch.zeros((3,32,32))
     loader = DataLoader(dataset, batch_size=1024, shuffle=False, num_workers=4, drop_last=False)
     for images, _ in loader:
-        if mean == None:
-            mean = sum(images)
-        else:
-            mean += sum(images)
+        mean += sum(images)
     return mean / len(dataset)
 
 class Cifar100(VisionDataset):
