@@ -8,7 +8,10 @@ def pixel_mean(root):
     mean = None
     loader = DataLoader(dataset, batch_size=1024, shuffle=False, num_workers=4, drop_last=False)
     for images, _ in loader:
-        mean = sum(images)
+        if mean == None:
+            mean = sum(images)
+        else:
+            mean += sum(images)
     return mean / len(dataset)
 
 class Cifar100(VisionDataset):
