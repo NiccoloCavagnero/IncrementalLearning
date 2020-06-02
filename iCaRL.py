@@ -226,7 +226,7 @@ class iCaRL():
 
         return net
 
-    def __randomExemplarSet__(self,data,n_classes):
+    def __randomExemplarSet__(self,data,fixed_data,n_classes):
       print('\n ### Construct Random Exemplar Set ###')
       m = int(self.memory/n_classes)
 
