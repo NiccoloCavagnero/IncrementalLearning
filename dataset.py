@@ -4,14 +4,6 @@ from torch.utils.data import DataLoader
 import torch
 import numpy as np
 
-def pixel_mean(root):
-    dataset = CIFAR100(root=root,train=True,transform=transforms.ToTensor())
-    mean = torch.zeros((3,32,32))
-    loader = DataLoader(dataset, batch_size=1024, shuffle=False, num_workers=4, drop_last=False)
-    for images, _ in loader:
-        mean += sum(images)
-    return mean / len(dataset)
-
 class Cifar100(VisionDataset):
     def __init__(self, root, train, transform=None, target_transform=None):
         super(Cifar100, self).__init__(root, transform=transform, target_transform=target_transform)
@@ -19,8 +11,6 @@ class Cifar100(VisionDataset):
         self.transform = transform
         self.toTensor = transforms.ToTensor()
         self.toPIL = transforms.ToPILImage()
-
-        self.pixel_mean = pixel_mean(root)
         
         shuffled_classes = [61, 34, 79, 90,  9, 17, 68, 54, 74, 99, 75, 46, 83, 57, 77, 28, 52,
         40, 93, 12, 82, 89, 19, 43, 95, 48, 85, 86,  0, 53, 58, 63, 65, 94,
@@ -45,9 +35,6 @@ class Cifar100(VisionDataset):
         image, label = self.dataset[index]
         
         if self.transform is not None:
-            image = self.toTensor(image)
-            image -= self.pixel_mean
-            image = self.toPIL(image)
             image = self.transform(image)
             
         return image, self.label_map[label], index
