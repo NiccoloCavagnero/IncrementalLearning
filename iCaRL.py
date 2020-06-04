@@ -275,7 +275,6 @@ class iCaRL():
             if item[1] == label:
               class_map[label].append(item)
               fixed_map[label].append(fixed_item)
-
         
         # Get and save net outputs for each class
         net.eval()
