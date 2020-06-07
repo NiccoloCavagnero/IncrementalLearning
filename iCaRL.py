@@ -404,6 +404,8 @@ class iCaRL():
         # Classifier
         if classifier == 'NME':
           accuracy_per_batch.append(self.__NMEClassifier__(test_batches[idx],fixed_batches[idx],fixed_exemplars,net,n_classes,NME_mode))
+        elif classifier == 'FC:
+          accuracy_per_batch.append(self.__FCClassifier__(test_batches[idx],net,n_classes))
         else:
           accuracy_per_batch.append(self.__SKLClassifier__(test_batches[idx],fixed_exemplars,net,n_classes,classifier))
         self.__printTime__(t0)
