@@ -302,7 +302,7 @@ class iCaRL():
             min_distance = 99999
             exemplar_sum = 0
             for idx, tensor in enumerate(class_outputs):
-             temp_tensor = (exemplar_sum + tensor) / (len(exemplars[label])+1)
+              temp_tensor = (exemplar_sum + tensor) / (len(exemplars[label])+1)
               temp_tensor = temp_tensor / temp_tensor.norm()
 
               # Update when a new distance is < than min_distance
