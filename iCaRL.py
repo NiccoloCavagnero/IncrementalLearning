@@ -38,7 +38,7 @@ class iCaRL():
         
         loader = DataLoader(items, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
         mean = torch.zeros((1,64),device=self.device)
-        for images, _, _ in loader:
+        for images, _ in loader:
           with torch.no_grad():
             images = images.to(self.device)
             outputs = net(images,features=True)
@@ -51,7 +51,7 @@ class iCaRL():
 
       n_correct = 0.0
       print('   # NME Predicting ')
-      for images, labels, _ in loader:
+      for images, labels in loader:
         images = images.to(self.device)
         with torch.no_grad():
           outputs = net(images,features=True)
@@ -91,7 +91,7 @@ class iCaRL():
       running_corrects = 0.0
       with torch.no_grad():
         loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
-        for images, labels, _ in loader:
+        for images, labels in loader:
           images = images.to(self.device)
           labels = labels.to(self.device)
 
@@ -119,7 +119,7 @@ class iCaRL():
       for key in exemplars:
         loader = DataLoader(exemplars[key], batch_size=512, shuffle=False, num_workers=4, drop_last=False)
         mean = torch.zeros((1,64),device=self.device)
-        for images, labels, _ in loader:
+        for images, labels in loader:
           with torch.no_grad():
             images = images.to(self.device)
             outputs = net(images,features=True)
@@ -134,7 +134,7 @@ class iCaRL():
 
       n_correct = 0.0
       print(f'   # {s} Predicting ')
-      for images, labels, _ in loader:
+      for images, labels in loader:
         images = images.to(self.device)
         with torch.no_grad():
           outputs = net(images,features=True)
@@ -170,6 +170,7 @@ class iCaRL():
           data = new_data
         
         old_net = deepcopy(net)
+        old_net.eval()
         
         # Define Dataloader
         loader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
@@ -192,8 +193,7 @@ class iCaRL():
           net.train() 
 
           running_loss = 0.0
-          for images, labels, indexes in loader:
-            indexes = indexes.to(self.device)              
+          for images, labels in loader:
             images = images.to(self.device)
             labels = labels.to(self.device)
             
@@ -208,8 +208,9 @@ class iCaRL():
             if n_classes == 10 or fineTune:
                 tot_loss = criterion(outputs[:,n_classes-10:], labels[:,n_classes-10:])
             else:
-                old_outputs = self.__getOldOutputs__(images,indexes,old_net,n_classes-10)
-                targets = torch.cat((old_outputs[indexes],labels[:,n_classes-10:]),1)
+                with torch.no_grad():
+                  old_outputs = torch.sigmoid(old_net(images))
+                targets = torch.cat((old_outputs,labels[:,n_classes-10:]),1)
                 tot_loss = criterion(outputs,targets)   
 
             # Update Running Loss         
@@ -286,7 +287,7 @@ class iCaRL():
           # Compute class means
           with torch.no_grad():
             loader = DataLoader(fixed_map[label], batch_size=512, shuffle=False, num_workers=4, drop_last=False)
-            for images, _, _ in loader:
+            for images, _ in loader:
                 images = images.to(self.device)
                 outputs = net(images,features=True)
                 for output in outputs:
@@ -297,22 +298,22 @@ class iCaRL():
             means[label] = mean / mean.norm()
           
           # Construct exemplar list for current class
-          exemplars_output = []
           for i in range(m):
             min_distance = 99999
-            exemplar_sum = sum(exemplars_output)
+            exemplar_sum = 0
             for idx, tensor in enumerate(class_outputs):
-              temp_tensor = (exemplar_sum + tensor) / (len(exemplars_output)+1)
+              exemplar_sum += tensor
+              temp_tensor = exemplar_sum / (len(exemplars[label])+1)
               temp_tensor = temp_tensor / temp_tensor.norm()
-              
+
               # Update when a new distance is < than min_distance
               if torch.dist(mean,temp_tensor) < min_distance:
                 min_distance = torch.dist(mean,temp_tensor)
                 min_index = idx
-               
+            
             exemplars[label].append(class_map[label][min_index])
             fixed_exemplars[label].append(fixed_map[label][min_index])
-            exemplars_output.append(class_outputs[min_index])
+        
             class_map[label].pop(min_index)
             fixed_map[label].pop(min_index)
             class_outputs.pop(min_index)
@@ -329,20 +330,6 @@ class iCaRL():
         fixed_exemplars[key] = fixed_exemplars[key][:m]
       
       return exemplars, fixed_exemplars
-    
-    def __getOldOutputs__(self,images,indexes,net,n_classes):
-      # Forward pass in the old network
-      net.eval()
-      q = torch.zeros(50000, n_classes).to(self.device)
-      with torch.no_grad():
-        images = images.to(self.device)
-        indexes = indexes.to(self.device)
-          
-        g = torch.sigmoid(net(images))
-        q[indexes] = g
-      q = q.to(self.device)
-
-      return q
 
     def __updateNet__(self,net,n_classes):
       in_features = net.fc.in_features
@@ -366,7 +353,7 @@ class iCaRL():
       new_exemplars = []
       for key in exemplars:
         for item in exemplars[key]:
-          new_exemplars.append([item[0],item[1],item[2]])
+          new_exemplars.append([item[0],item[1]])
 
       return new_exemplars
 
