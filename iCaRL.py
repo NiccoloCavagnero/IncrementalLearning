@@ -302,14 +302,15 @@ class iCaRL():
             min_distance = 99999
             exemplar_sum = 0
             for idx, tensor in enumerate(class_outputs):
-              exemplar_sum += tensor
-              temp_tensor = exemplar_sum / (len(exemplars[label])+1)
+             temp_tensor = (exemplar_sum + tensor) / (len(exemplars[label])+1)
               temp_tensor = temp_tensor / temp_tensor.norm()
 
               # Update when a new distance is < than min_distance
               if torch.dist(mean,temp_tensor) < min_distance:
                 min_distance = torch.dist(mean,temp_tensor)
                 min_index = idx
+                
+            exemplar_sum += class_outputs[idx]
             
             exemplars[label].append(class_map[label][min_index])
             fixed_exemplars[label].append(fixed_map[label][min_index])
