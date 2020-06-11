@@ -408,9 +408,9 @@ class iCaRL():
         if classifier == 'NME':
           accuracy, predictions, labels = self.__NMEClassifier__(test_batches[idx],fixed_batches[idx],fixed_exemplars,net,n_classes,NME_mode)
         elif classifier == 'FC':
-          accuracy_per_batch.append(self.__FCClassifier__(test_batches[idx],net,n_classes))
+          accuracy = self.__FCClassifier__(test_batches[idx],net,n_classes)
         else:
-          accuracy_per_batch.append(self.__SKLClassifier__(test_batches[idx],fixed_exemplars,net,n_classes,classifier))
+          accuracy = self.__SKLClassifier__(test_batches[idx],fixed_exemplars,net,n_classes,classifier)
         accuracy_per_batch.append(accuracy)
         self.__printTime__(t0)
         
