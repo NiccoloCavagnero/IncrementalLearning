@@ -6,13 +6,18 @@ from copy import deepcopy
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from torch.nn import BCEWithLogitsLoss    
+from torch.nn import BCEWithLogitsLoss
+
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+from matplotlib import pyplot as plt
 
 class iCaRL():
-    def __init__(self,memory=2000,device='cuda',params=None):
+    def __init__(self,memory=2000,device='cuda',params=None,plot=False):
         self.memory = memory
         self.device = device
         self.params = params
+        self.plot = plot
 
     def __NMEClassifier__(self,data,batch,exemplars,net,n_classes,mode='NME'):
       print(f'\n ### NME ###')
@@ -43,7 +48,9 @@ class iCaRL():
             images = images.to(self.device)
             flipped_images = torch.flip(images,[3])
             images = torch.cat((images,flipped_images))
+            
             outputs = net(images,features=True)
+            
             for output in outputs:
               mean += output
         mean = mean / ( 2 * len(items) ) 
@@ -53,11 +60,13 @@ class iCaRL():
 
       n_correct = 0.0
       print('   # NME Predicting ')
+      predictions = []
+      label_list = []
       for images, labels in loader:
         images = images.to(self.device)
+        label_list += list(labels)
         with torch.no_grad():
           outputs = net(images,features=True)
-          predictions = []
           for output in outputs:
             prediction = None
             if mode == 'NME':
@@ -76,14 +85,14 @@ class iCaRL():
                   prediction = key
             predictions.append(prediction)
           
-          for label, prediction in zip(labels,predictions):
-            if label == prediction:
-              n_correct += 1
+      for label, prediction in zip(labels,predictions):
+        if label == prediction:
+          n_correct += 1
       
       accuracy = n_correct/len(data)
       print(f'   # NME Accuracy: {accuracy}')
 
-      return accuracy
+      return accuracy, predictions, label_list
 
     def __FCClassifier__(self,data,net,n_classes):
       print(f'\n ### FC Layer ###')
@@ -359,7 +368,11 @@ class iCaRL():
           new_exemplars.append([item[0],item[1]])
 
       return new_exemplars
-
+    
+    def __confusionMatrix__(self,labels,predictions):
+      sns.heatmap(confusion_matrix(labels, predictions), annot=True)
+      plt.show()
+      
     def __printTime__(self,t0):
       print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
     
@@ -393,12 +406,16 @@ class iCaRL():
         
         # Classifier
         if classifier == 'NME':
-          accuracy_per_batch.append(self.__NMEClassifier__(test_batches[idx],fixed_batches[idx],fixed_exemplars,net,n_classes,NME_mode))
+          accuracy, predictions, labels = self.__NMEClassifier__(test_batches[idx],fixed_batches[idx],fixed_exemplars,net,n_classes,NME_mode)
         elif classifier == 'FC':
           accuracy_per_batch.append(self.__FCClassifier__(test_batches[idx],net,n_classes))
         else:
           accuracy_per_batch.append(self.__SKLClassifier__(test_batches[idx],fixed_exemplars,net,n_classes,classifier))
+        accuracy_per_batch.append(accuracy)
         self.__printTime__(t0)
+        
+        if self.plot:
+          self.__confusionMatrix__(labels,predictions)
 
       return accuracy_per_batch
     
