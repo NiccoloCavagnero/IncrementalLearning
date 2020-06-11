@@ -41,10 +41,12 @@ class iCaRL():
         for images, _ in loader:
           with torch.no_grad():
             images = images.to(self.device)
+            flipped_images = torch.flip(images,[3])
+            images = torch.cat((images,flipped_images))
             outputs = net(images,features=True)
             for output in outputs:
               mean += output
-        mean = mean/len(items)
+        mean = mean / ( 2 * len(items) ) 
         means[key] = mean / mean.norm()
 
       loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
