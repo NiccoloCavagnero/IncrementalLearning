@@ -85,7 +85,7 @@ class iCaRL():
                   prediction = key
             predictions.append(prediction)
           
-      for label, prediction in zip(labels,predictions):
+      for label, prediction in zip(label_list,predictions):
         if label == prediction:
           n_correct += 1
       
@@ -370,7 +370,7 @@ class iCaRL():
       return new_exemplars
     
     def __confusionMatrix__(self,labels,predictions):
-      sns.heatmap(confusion_matrix(labels, predictions), annot=True)
+      sns.heatmap(confusion_matrix(labels, predictions), annot=True, cmap='coolwarm')
       plt.show()
       
     def __printTime__(self,t0):
