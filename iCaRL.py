@@ -370,7 +370,7 @@ class iCaRL():
       return new_exemplars
     
     def __confusionMatrix__(self,labels,predictions):
-      sns.heatmap(confusion_matrix(labels, predictions), annot=True, cmap='coolwarm')
+      sns.heatmap(confusion_matrix(labels, predictions), cmap='Spectral')
       plt.show()
       
     def __printTime__(self,t0):
