@@ -5,7 +5,7 @@ from copy import deepcopy
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torch.nn import BCEWithLogitsLoss
 
 import seaborn as sns
@@ -13,10 +13,11 @@ from sklearn.metrics import confusion_matrix
 from matplotlib import pyplot as plt
 
 class iCaRL():
-    def __init__(self,memory=2000,device='cuda',params=None,plot=False):
+    def __init__(self,memory=2000,device='cuda',params=None,dataset=None,plot=False):
         self.memory = memory
         self.device = device
         self.params = params
+        self.dataset = dataset
         self.plot = plot
 
     def __NMEClassifier__(self,data,batch,exemplars,net,n_classes,mode='NME'):
@@ -43,7 +44,7 @@ class iCaRL():
         
         loader = DataLoader(items, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
         mean = torch.zeros((1,64),device=self.device)
-        for images, _ in loader:
+        for images, _, _ in loader:
           with torch.no_grad():
             images = images.to(self.device)
             flipped_images = torch.flip(images,[3])
@@ -62,7 +63,7 @@ class iCaRL():
       print('   # NME Predicting ')
       predictions = []
       label_list = []
-      for images, labels in loader:
+      for images, labels, _ in loader:
         images = images.to(self.device)
         label_list += list(labels)
         with torch.no_grad():
@@ -163,7 +164,7 @@ class iCaRL():
 
       return accuracy
  
-    def __updateRepresentation__(self,new_data,exemplars,net,n_classes,fineTune=False):
+    def __updateRepresentation__(self,data,net,n_classes,fineTune=False):
         print('\n ### Update Representation ###')
         EPOCHS = self.params['EPOCHS']
         BATCH_SIZE = self.params['BATCH_SIZE']
@@ -173,12 +174,6 @@ class iCaRL():
 
         # Define Loss
         criterion = BCEWithLogitsLoss()
-        
-        # Concatenate new data with set of exemplars
-        if len(exemplars) != 0:
-          data = new_data + exemplars
-        else:
-          data = new_data
         
         old_net = deepcopy(net)
         old_net.eval()
@@ -204,7 +199,7 @@ class iCaRL():
           net.train() 
 
           running_loss = 0.0
-          for images, labels in loader:
+          for images, labels, _ in loader:
             images = images.to(self.device)
             labels = labels.to(self.device)
             
@@ -238,55 +233,52 @@ class iCaRL():
 
         return net
 
-    def __randomExemplarSet__(self,data,fixed_data,n_classes):
+    def __randomExemplarSet__(self,fixed_data,n_classes):
       print('\n ### Construct Random Exemplar Set ###')
       m = int(self.memory/n_classes)
 
       # Initialize list of means, images and exemplars for each class
       class_map = dict.fromkeys(np.arange(n_classes-10,n_classes))
-      fixed_map = dict.fromkeys(np.arange(n_classes-10,n_classes))
-      exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes)) 
+      indexes = dict.fromkeys(np.arange(n_classes-10,n_classes)) 
       fixed_exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))       
       for label in class_map:
-          class_map[label], fixed_map[label] = [], []
-          exemplars[label], fixed_exemplars[label] = [], []
+          class_map[label] =  []
+          fixed_exemplars[label] = []
         
       # Fill class_map
-      for item, fixed_item in zip(data,fixed_data):
+      for item in fixed_data:
         for label in class_map:
           if item[1] == label:
             class_map[label].append(item) 
-            fixed_map[label].append(fixed_item)
 
       for label in range(n_classes-10,n_classes):
-        indexes = random.sample(range(len(class_map[label])),m)   
+        class_indexes = random.sample(range(len(class_map[label])),m)   
         for i in indexes:
-          exemplars[label].append(class_map[label][i])
-          fixed_exemplars[label].append(fixed_map[label][i])
+          fixed_exemplars[label].append(class_map[label][i])
+        indexes[label] = class_indexes
 
-      return exemplars, fixed_exemplars
+      return fixed_exemplars, indexes 
     
-    def __constructExemplarSet__(self,data,fixed_data,n_classes,net):
+    def __constructExemplarSet__(self,fixed_data,n_classes,net):
         print('\n ### Construct Exemplar Set ###')
         m = int(self.memory/n_classes)
 
         # Initialize list of means, images and exemplars for each class
         means = dict.fromkeys(np.arange(n_classes-10,n_classes))
         class_map = dict.fromkeys(np.arange(n_classes-10,n_classes))
-        fixed_map = dict.fromkeys(np.arange(n_classes-10,n_classes))
-        exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
+        indexes = dict.fromkeys(np.arange(n_classes-10,n_classes))
         fixed_exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
 
         for label in class_map:
-          class_map[label], fixed_map[label] = [], []
-          exemplars[label], fixed_exemplars[label] = [], []
+          class_map[label] =  []
+          fixed_exemplars[label] = []
+          indexes[label] = []
         
         # Fill class_map
-        for item, fixed_item in zip(data,fixed_data):
+        for fixed_item in fixed_data:
           for label in class_map:
-            if item[1] == label:
-              class_map[label].append(item)
-              fixed_map[label].append(fixed_item)
+            if fixed_item[1] == label:
+              class_map[label].append(fixed_item)
         
         # Get and save net outputs for each class
         net.eval()
@@ -294,18 +286,20 @@ class iCaRL():
           print(f'\r   # Class: {label+1}',end='')
           mean = torch.zeros((1,64),device=self.device)
           class_outputs = []
+          output_indexes = []
           
           # Compute class means
           with torch.no_grad():
-            loader = DataLoader(fixed_map[label], batch_size=512, shuffle=False, num_workers=4, drop_last=False)
-            for images, _ in loader:
+            loader = DataLoader(class_map[label], batch_size=512, shuffle=False, num_workers=4, drop_last=False)
+            for images, _, batch_indexes in loader:
                 images = images.to(self.device)
+                output_indexes += list(batch_indexes)
                 outputs = net(images,features=True)
                 for output in outputs:
                     output = output.to(self.device)
                     class_outputs.append(output)
                     mean += output
-            mean = mean/len(fixed_map[label])
+            mean = mean/len(class_map[label])
             means[label] = mean / mean.norm()
           
           # Construct exemplar list for current class
@@ -313,7 +307,7 @@ class iCaRL():
             min_distance = 99999
             exemplar_sum = 0
             for idx, tensor in enumerate(class_outputs):
-              temp_tensor = (exemplar_sum + tensor) / (len(exemplars[label])+1)
+              temp_tensor = (exemplar_sum + tensor) / (len(fixed_exemplars[label])+1)
               temp_tensor = temp_tensor / temp_tensor.norm()
 
               # Update when a new distance is < than min_distance
@@ -323,25 +317,25 @@ class iCaRL():
                 
             exemplar_sum += class_outputs[min_index]
             
-            exemplars[label].append(class_map[label][min_index])
-            fixed_exemplars[label].append(fixed_map[label][min_index])
-        
+            fixed_exemplars[label].append(class_map[label][min_index])
+            indexes[label].append(output_indexes[min_index])
+            
             class_map[label].pop(min_index)
-            fixed_map[label].pop(min_index)
             class_outputs.pop(min_index)
+            output_indexes.pop(min_index)
         print()
 
-        return exemplars, fixed_exemplars
+        return fixed_exemplars, indexes
 
-    def __reduceExemplarSet__(self,exemplars,fixed_exemplars,n_classes):
+    def __reduceExemplarSet__(self,exemplar_indexes,fixed_exemplars,n_classes):
       print('\n ### Reduce Exemplar Set ###')
       m = int(self.memory/n_classes)
       print(f'   # Exemplars per class: {m}')
-      for key in exemplars:
-        exemplars[key] = exemplars[key][:m]
+      for key in fixed_exemplars:
+        exemplar_indexes[key] = exemplar_indexes[key][:m]
         fixed_exemplars[key] = fixed_exemplars[key][:m]
       
-      return exemplars, fixed_exemplars
+      return fixed_exemplars, exemplar_indexes
 
     def __updateNet__(self,net,n_classes):
       in_features = net.fc.in_features
@@ -379,29 +373,30 @@ class iCaRL():
     # Run ICaRL
     def run(self,fixed_batches,train_batches,test_batches,net,herding=True,classifier='NME',NME_mode='NME'):
       t0 = time.time()
-      exemplars, fixed_exemplars = {}, {}
-      new_exemplars = []
+      exemplar_indexes, fixed_exemplars = {}, {}
       accuracy_per_batch = []
       for idx, batch in enumerate(train_batches):
         print(f'\n##### BATCH {idx+1} #####')
         n_classes = (idx+1)*10
 
+        for key in exemplar_indexes:
+          class_exemplars = Subset(self.dataset,exemplar_indexes[key])
+          batch = batch + class_exemplars
+
         # Update Representation
-        net = self.__updateRepresentation__(batch,new_exemplars,net,n_classes)
+        net = self.__updateRepresentation__(batch,net,n_classes)
         self.__printTime__(t0)
 
         # Exemplars managing
-        exemplars, fixed_exemplars = self.__reduceExemplarSet__(exemplars,fixed_exemplars,n_classes)
+        fixed_exemplars, exemplar_indexes = self.__reduceExemplarSet__(exemplar_indexes,fixed_exemplars,n_classes)
         self.__printTime__(t0)
         
         if herding:
-          new_exemplars, new_fixed_exemplars = self.__constructExemplarSet__(batch,fixed_batches[idx],n_classes,net)
+          new_fixed_exemplars, new_indexes = self.__constructExemplarSet__(fixed_batches[idx],n_classes,net)
         else:
-          new_exemplars, new_fixed_exemplars = self.__randomExemplarSet__(batch,fixed_batches[idx],n_classes)
-        exemplars.update(new_exemplars)
+          new_fixed_exemplars, new_indexes = self.__randomExemplarSet__(fixed_batches[idx],n_classes)
+        exemplar_indexes.update(new_indexes)
         fixed_exemplars.update(new_fixed_exemplars)
-
-        new_exemplars = self.__formatExemplars__(exemplars)
         self.__printTime__(t0)
         
         # Classifier
