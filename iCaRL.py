@@ -352,7 +352,7 @@ class iCaRL():
       new_exemplars = []
       for key in exemplars:
         for item in exemplars[key]:
-          new_exemplars.append([item[0],item[1])
+          new_exemplars.append([item[0],item[1]])
 
       return new_exemplars
     
