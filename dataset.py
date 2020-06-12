@@ -9,8 +9,6 @@ class Cifar100(VisionDataset):
         super(Cifar100, self).__init__(root, transform=transform, target_transform=target_transform)
         self.dataset = CIFAR100(root=root, train=train, download=True, transform=None)
         self.transform = transform
-        self.toTensor = transforms.ToTensor()
-        self.toPIL = transforms.ToPILImage()
         
         shuffled_classes = [61, 34, 79, 90,  9, 17, 68, 54, 74, 99, 75, 46, 83, 57, 77, 28, 52,
         40, 93, 12, 82, 89, 19, 43, 95, 48, 85, 86,  0, 53, 58, 63, 65, 94,
