@@ -346,10 +346,7 @@ class iCaRL():
 
     def __confusionMatrix__(self,labels,predictions):
       cm = confusion_matrix(labels, predictions)
-      for i in range(cm.shape[0]):
-        for j in range(cm.shape[0]):
-          cm[i][j] = np.log(1+cm[i][j])
-      sns.heatmap(cm,cmap='jet',cbar=False)
+      sns.heatmap(np.log(cm+1),cmap='jet',cbar=False)
       plt.xlabel('Predicted Class')
       plt.ylabel('True Class')
       plt.show()
