@@ -35,7 +35,7 @@ class iCaRL():
             batch_map[label].append(item)
 
       print('   # Computing means ')
-      for key in exemplars:
+      for key in range(n_classes):
         if key in range(n_classes-10,n_classes):
           items = batch_map[key]
         else:
@@ -357,11 +357,15 @@ class iCaRL():
       return new_exemplars
     
     def __confusionMatrix__(self,labels,predictions):
-      sns.heatmap(confusion_matrix(labels, predictions), cmap='jet')
+      cm = confusion_matrix(labels, predictions)
+      for i in range(cm.shape[0]):
+        for j in range(cm.shape[0]):
+          cm[i][j] = np.log(1+cm[i][j])
+      sns.heatmap(cm,cmap='jet',cbar=False)
       plt.show()
 
     def __augmentation__(self,image):
-      image = F.pad(image,(4,4,4,4))
+      image = F.pad(image,(4,4,4,4),value=-.1)
       x = random.randint(0,7)
       y = random.randint(0,7)
       image = image[:,x:x+32,y:y+32]
@@ -385,19 +389,6 @@ class iCaRL():
         # Update Representation
         net = self.__updateRepresentation__(batch,new_exemplars,net,n_classes)
         self.__printTime__(t0)
-
-        # Exemplars managing
-        exemplars = self.__reduceExemplarSet__(exemplars,n_classes)
-        self.__printTime__(t0)
-        
-        if herding:
-          new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
-        else:
-          new_exemplars = self.__randomExemplarSet__(batch,n_classes)
-        exemplars.update(new_exemplars)
-        new_exemplars = self.__formatExemplars__(exemplars)
-
-        self.__printTime__(t0)
         
         # Classifier
         if classifier == 'NME':
@@ -411,6 +402,18 @@ class iCaRL():
         
         if self.plot:
           self.__confusionMatrix__(labels,predictions)
+
+        # Exemplars managing
+        exemplars = self.__reduceExemplarSet__(exemplars,n_classes)
+        self.__printTime__(t0)
+        
+        if herding:
+          new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
+        else:
+          new_exemplars = self.__randomExemplarSet__(batch,n_classes)
+        exemplars.update(new_exemplars)
+        new_exemplars = self.__formatExemplars__(exemplars)
+        self.__printTime__(t0)
 
       return accuracy_per_batch
     
