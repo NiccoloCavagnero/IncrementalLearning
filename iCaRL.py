@@ -169,18 +169,18 @@ class iCaRL():
         if len(exemplars) != 0:
           data = data + exemplars
         
-        old_net = deepcopy(net)
-        old_net.eval()
-        
         # Define Dataloader
         loader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
 
         if n_classes != 10:
+          # Save network for distillation
+          old_net = deepcopy(net)
+          old_net.eval()
           # Update network's last layer
           net = self.__updateNet__(net,n_classes)
-          
-        optimizer = torch.optim.SGD(net.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
+        
         net = net.to(self.device)
+        optimizer = torch.optim.SGD(net.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
         
         for epoch in range(EPOCHS):
          
