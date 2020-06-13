@@ -24,15 +24,7 @@ class iCaRL():
       means = dict.fromkeys(np.arange(n_classes))
       net.eval()
 
-      batch_map = dict.fromkeys(np.arange(n_classes-10,n_classes))       
-      for label in batch_map:
-        batch_map[label] = []
-        
-      # Fill batch_map
-      for item in batch:          
-        for label in batch_map:
-          if item[1] == label:
-            batch_map[label].append(item)
+      batch_map = self.__fillClassMap__(batch,n_classes)
 
       print('   # Computing means ')
       for key in range(n_classes):
@@ -241,17 +233,11 @@ class iCaRL():
       m = int(self.memory/n_classes)
 
       # Initialize list of means, images and exemplars for each class
-      class_map = dict.fromkeys(np.arange(n_classes-10,n_classes))
-      exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))       
-      for label in class_map:
-          class_map[label] =  []
-          exemplars[label] = []
-        
-      # Fill class_map
-      for item in data:
-        for label in class_map:
-          if item[1] == label:
-            class_map[label].append(item) 
+      class_map = self.__fillClassMap__(data,n_classes)
+      exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
+
+      for label in exemplars:
+        exemplars[label] = []
 
       for label in range(n_classes-10,n_classes):
         indexes = random.sample(range(len(class_map[label])),m)   
@@ -265,19 +251,12 @@ class iCaRL():
         m = int(self.memory/n_classes)
 
         # Initialize list of means, images and exemplars for each class
+        class_map = self.__fillClassMap__(data,n_classes)
         means = dict.fromkeys(np.arange(n_classes-10,n_classes))
-        class_map = dict.fromkeys(np.arange(n_classes-10,n_classes))
         exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
 
-        for label in class_map:
-          class_map[label] =  []
+        for label in exemplars:
           exemplars[label] = []
-        
-        # Fill class_map
-        for item in data:
-          for label in class_map:
-            if item[1] == label:
-              class_map[label].append(item)
         
         # Get and save net outputs for each class
         net.eval()
@@ -355,7 +334,16 @@ class iCaRL():
           new_exemplars.append([item[0],item[1]])
 
       return new_exemplars
-    
+
+    def __augmentation__(self,image):
+      image = F.pad(image,(4,4,4,4),value=-1)
+      x = random.randint(0,7)
+      y = random.randint(0,7)
+      image = image[:,x:x+32,y:y+32]
+      if random.randint(0,1):
+        image = torch.flip(image,[2])
+      return image
+
     def __confusionMatrix__(self,labels,predictions):
       cm = confusion_matrix(labels, predictions)
       for i in range(cm.shape[0]):
@@ -364,14 +352,19 @@ class iCaRL():
       sns.heatmap(cm,cmap='jet',cbar=False)
       plt.show()
 
-    def __augmentation__(self,image):
-      image = F.pad(image,(4,4,4,4),value=-.1)
-      x = random.randint(0,7)
-      y = random.randint(0,7)
-      image = image[:,x:x+32,y:y+32]
-      if random.randint(0,1):
-        image = torch.flip(image,[2])
-      return image
+    def __fillClassMap__(self,data,n_classes):
+      class_map = dict.fromkeys(np.arange(n_classes-10,n_classes))
+      
+      for label in class_map:
+        class_map[label] =  []
+        
+      # Fill class_map
+      for item in data:
+        for label in class_map:
+          if item[1] == label:
+            class_map[label].append(item)
+
+      return class_map
       
     def __printTime__(self,t0):
       print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
