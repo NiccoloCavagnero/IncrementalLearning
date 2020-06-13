@@ -350,6 +350,8 @@ class iCaRL():
         for j in range(cm.shape[0]):
           cm[i][j] = np.log(1+cm[i][j])
       sns.heatmap(cm,cmap='jet',cbar=False)
+      plt.xlabel('Predicted Class')
+      plt.ylabel('True Class')
       plt.show()
 
     def __fillClassMap__(self,data,n_classes):
