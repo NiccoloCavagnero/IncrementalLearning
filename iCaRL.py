@@ -1,6 +1,5 @@
 import numpy as np
 import time
-import random 
 from copy import deepcopy
 
 import torch
@@ -337,10 +336,9 @@ class iCaRL():
 
     def __augmentation__(self,image):
       image = F.pad(image,(4,4,4,4),value=0)
-      x = random.randint(0,7)
-      y = random.randint(0,7)
+      x,y = np.random.randint(8),np.random.randint(8)
       image = image[:,x:x+32,y:y+32]
-      if random.randint(0,1):
+      if np.random.randint(2):
         image = torch.flip(image,[2])
       return image
 
@@ -352,8 +350,7 @@ class iCaRL():
       plt.show()
 
     def __fillClassMap__(self,data,n_classes):
-      class_map = dict.fromkeys(np.arange(n_classes-10,n_classes))
-      
+      class_map = dict.fromkeys(np.arange(n_classes-10,n_classes))  
       for label in class_map:
         class_map[label] =  []
         
