@@ -239,7 +239,7 @@ class iCaRL():
       for label in exemplars:
         exemplars[label] = []
 
-      for label in range(n_classes-10,n_classes):
+      for label in class_map:
         indexes = random.sample(range(len(class_map[label])),m)   
         for i in indexes:
           exemplars[label].append(class_map[label][i])
