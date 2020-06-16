@@ -252,7 +252,6 @@ class iCaRL():
 
         # Initialize list of means, images and exemplars for each class
         class_map = self.__fillClassMap__(data,n_classes)
-        means = dict.fromkeys(np.arange(n_classes-10,n_classes))
         exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
 
         for label in exemplars:
@@ -275,8 +274,8 @@ class iCaRL():
                     output = output.to(self.device)
                     class_outputs.append(output)
                     mean += output
-            mean = mean / len(class_map[label])
-            means[label] = mean / mean.norm()
+            mean /= len(class_map[label])
+            mean /= mean.norm()
           
           # Construct exemplar list for current class
           for i in range(m):
