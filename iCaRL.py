@@ -232,7 +232,7 @@ class iCaRL():
       print('\n ### Construct Random Exemplar Set ###')
       m = int(self.memory/n_classes)
 
-      # Initialize list of means, images and exemplars for each class
+      # Initialize lists of images and exemplars for each class
       class_map = self.__fillClassMap__(data,n_classes)
       exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
 
@@ -250,7 +250,7 @@ class iCaRL():
         print('\n ### Construct Exemplar Set ###')
         m = int(self.memory/n_classes)
 
-        # Initialize list of means, images and exemplars for each class
+        # Initialize lists of images and exemplars for each class
         class_map = self.__fillClassMap__(data,n_classes)
         exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
 
@@ -261,8 +261,8 @@ class iCaRL():
         net.eval()
         for label in class_map:
           print(f'\r   # Class: {label+1}',end='')
-          mean = torch.zeros((1,64),device=self.device)
           class_outputs = []
+          mean = 0
           
           # Compute class means
           with torch.no_grad():
@@ -290,10 +290,10 @@ class iCaRL():
                 min_index = idx
                 
             exemplar_sum += class_outputs[min_index]
-            
+            class_outputs.pop(min_index)
+       
             exemplars[label].append(class_map[label][min_index])
             class_map[label].pop(min_index)
-            class_outputs.pop(min_index)
         print()
 
         return exemplars
