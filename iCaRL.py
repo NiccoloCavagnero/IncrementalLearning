@@ -336,7 +336,7 @@ class iCaRL():
       return new_exemplars
 
     def __augmentation__(self,image):
-      image = F.pad(image,(4,4,4,4),value=0)
+      image = F.pad(image,(4,4,4,4),value=-1)
       x,y = np.random.randint(8),np.random.randint(8)
       image = image[:,x:x+32,y:y+32]
       if np.random.randint(2):
