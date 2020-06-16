@@ -271,7 +271,6 @@ class iCaRL():
                 images = images.to(self.device)
                 outputs = net(images,features=True)
                 for output in outputs:
-                    output = output.to(self.device)
                     class_outputs.append(output)
                     mean += output
             mean /= len(class_map[label])
