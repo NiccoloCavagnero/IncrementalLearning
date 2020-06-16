@@ -274,26 +274,25 @@ class iCaRL():
                     class_outputs.append(output)
                     mean += output
             mean /= len(class_map[label])
-            mean /= mean.norm()
           
-          # Construct exemplar list for current class
-          for i in range(m):
-            min_distance = 99999
-            exemplar_sum = 0
-            for idx, tensor in enumerate(class_outputs):
-              temp_tensor = (exemplar_sum + tensor) / (len(exemplars[label])+1)
-              temp_tensor = temp_tensor / temp_tensor.norm()
+            w_t = mean
 
-              # Update when a new distance is < than min_distance
-              if torch.dist(mean,temp_tensor) < min_distance:
-                min_distance = torch.dist(mean,temp_tensor)
-                min_index = idx
+            for i in range(m):
+              maximum = -99999
+              ind_max = None
+              for idx,tensor in enumerate(class_outputs):
+                temp_tensor = w_t.dot(tensor)
+
+                if temp_tensor > maximum:
+                  maximum = temp_tensor
+                  ind_max = idx
+
+              w_t = w_t+mean-class_outputs[ind_max]
                 
-            exemplar_sum += class_outputs[min_index]
-            class_outputs.pop(min_index)
+              class_outputs.pop(ind_max)
        
-            exemplars[label].append(class_map[label][min_index])
-            class_map[label].pop(min_index)
+              exemplars[label].append(class_map[label][ind_max])
+              class_map[label].pop(ind_max)
         print()
 
         return exemplars
