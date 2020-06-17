@@ -326,7 +326,7 @@ class iCaRL():
 
         # Update Representation
         net = self.__updateRepresentation__(batch,new_exemplars,net,n_classes)
-        self.__printTime__(t0)
+        utils.printTime(t0)
         
         # Classifier
         if classifier == 'NME':
@@ -336,14 +336,14 @@ class iCaRL():
         else:
           accuracy = self.__SKLClassifier__(test_batches[idx],exemplars,net,n_classes,classifier)
         accuracy_per_batch.append(accuracy)
-        self.__printTime__(t0)
+        utils.printTime(t0)
         
         if self.plot:
-          self.__confusionMatrix__(labels,predictions)
+          utils.confusionMatrix(labels,predictions)
 
         # Exemplars managing
         exemplars = self.__reduceExemplarSet__(exemplars,n_classes)
-        self.__printTime__(t0)
+        utils.printTime(t0)
         
         if herding:
           new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
@@ -351,7 +351,7 @@ class iCaRL():
           new_exemplars = self.__randomExemplarSet__(batch,n_classes)
         exemplars.update(new_exemplars)
         new_exemplars = self.__formatExemplars__(exemplars)
-        self.__printTime__(t0)
+        utils.printTime(t0)
 
       return accuracy_per_batch
     
@@ -363,9 +363,9 @@ class iCaRL():
         print(f'\n##### BATCH {idx+1} #####')
         n_classes = (idx+1)*10
         net = self.__updateRepresentation__(batch,{},net,n_classes,fineTune)
-        self.__printTime__(t0)
+        utils.printTime(t0)
 
         accuracy_per_batch.append(self.__FCClassifier__(test_batches[idx],net,n_classes))
-        self.__printTime__(t0)
+        utils.printTime(t0)
 
       return accuracy_per_batch
