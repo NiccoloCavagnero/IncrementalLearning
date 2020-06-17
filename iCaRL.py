@@ -196,7 +196,6 @@ class iCaRL():
           for images, labels in loader:
             images = images.to(self.device)
             images = torch.stack([ utils.augmentation(image) for image in images ])
-            labels = labels.to(self.device)
             
             # Zero-ing the gradients
             optimizer.zero_grad()
@@ -204,6 +203,7 @@ class iCaRL():
             outputs = net(images)      
             # Get One Hot Encoding for the labels
             labels = utils.getOneHot(labels,n_classes)
+            labels = labels.to(self.device)
 
             # Compute Losses
             if n_classes == 10 or fineTune:
