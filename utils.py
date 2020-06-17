@@ -1,6 +1,7 @@
 import numpy as np
-import torch
 import time
+import torch
+from torch.nn import functional as F
 
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
