@@ -10,7 +10,7 @@ from torch.nn import BCEWithLogitsLoss
 
 from matplotlib import pyplot as plt
 
-import utils
+from IncrementalLearning import utils
 
 class iCaRL():
     def __init__(self,memory=2000,device='cuda',params=None,plot=False):
