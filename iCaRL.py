@@ -6,7 +6,7 @@ from copy import deepcopy
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from torch.nn import BCEWithLogitsLoss, functional as F
+from torch.nn import BCEWithLogitsLoss
 
 from matplotlib import pyplot as plt
 
