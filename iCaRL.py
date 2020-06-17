@@ -8,9 +8,9 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torch.nn import BCEWithLogitsLoss, functional as F
 
-import seaborn as sns
-from sklearn.metrics import confusion_matrix
 from matplotlib import pyplot as plt
+
+import utils
 
 class iCaRL():
     def __init__(self,memory=2000,device='cuda',params=None,plot=False):
@@ -24,7 +24,7 @@ class iCaRL():
       means = dict.fromkeys(np.arange(n_classes))
       net.eval()
 
-      batch_map = self.__fillClassMap__(batch,n_classes)
+      batch_map = utils.fillClassMap(batch,n_classes)
 
       print('   # Computing means ')
       for key in range(n_classes):
@@ -177,7 +177,7 @@ class iCaRL():
           old_net = deepcopy(net)
           old_net.eval()
           # Update network's last layer
-          net = self.__updateNet__(net,n_classes)
+          net = utils.updateNet(net,n_classes)
         
         net = net.to(self.device)
         optimizer = torch.optim.SGD(net.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
@@ -195,7 +195,7 @@ class iCaRL():
           running_loss = 0.0
           for images, labels in loader:
             images = images.to(self.device)
-            images = torch.stack([ self.__augmentation__(image) for image in images ])
+            images = torch.stack([ utils.augmentation(image) for image in images ])
             labels = labels.to(self.device)
             
             # Zero-ing the gradients
@@ -203,7 +203,7 @@ class iCaRL():
             # Forward pass to the network
             outputs = net(images)      
             # Get One Hot Encoding for the labels
-            labels = self.__getOneHot__(labels,n_classes)
+            labels = utils.getOneHot(labels,n_classes)
 
             # Compute Losses
             if n_classes == 10 or fineTune:
@@ -233,7 +233,7 @@ class iCaRL():
       m = int(self.memory/n_classes)
 
       # Initialize lists of images and exemplars for each class
-      class_map = self.__fillClassMap__(data,n_classes)
+      class_map = utils.fillClassMap(data,n_classes)
       exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
 
       for label in exemplars:
@@ -251,7 +251,7 @@ class iCaRL():
         m = int(self.memory/n_classes)
 
         # Initialize lists of images and exemplars for each class
-        class_map = self.__fillClassMap__(data,n_classes)
+        class_map = utils.fillClassMap(data,n_classes)
         exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
 
         for label in exemplars:
@@ -306,24 +306,6 @@ class iCaRL():
       
       return exemplars
 
-    def __updateNet__(self,net,n_classes):
-      in_features = net.fc.in_features
-      out_features = net.fc.out_features
-      weight = net.fc.weight.data
-      bias = net.fc.bias.data
-
-      net.fc = nn.Linear(in_features, n_classes)
-      net.fc.weight.data[:out_features] = weight
-      net.fc.bias.data[:out_features] = bias
-
-      return net
-
-    def __getOneHot__(self, target, n_classes):
-      one_hot = torch.zeros(target.shape[0], n_classes).to(self.device)
-      one_hot = one_hot.scatter(dim=1,index=target.long().view(-1,1),value=1.)
-      
-      return one_hot
-
     def __formatExemplars__(self,exemplars):
       new_exemplars = []
       for key in exemplars:
@@ -331,38 +313,7 @@ class iCaRL():
           new_exemplars.append([item[0],item[1]])
 
       return new_exemplars
-
-    def __augmentation__(self,image):
-      image = F.pad(image,(4,4,4,4),value=-1)
-      x,y = np.random.randint(8),np.random.randint(8)
-      image = image[:,x:x+32,y:y+32]
-      if np.random.randint(2):
-        image = torch.flip(image,[2])
-      return image
-
-    def __confusionMatrix__(self,labels,predictions):
-      cm = confusion_matrix(labels, predictions)
-      sns.heatmap(np.log(cm+1),cmap='jet',cbar=False)
-      plt.xlabel('Predicted Class')
-      plt.ylabel('True Class')
-      plt.show()
-
-    def __fillClassMap__(self,data,n_classes):
-      class_map = dict.fromkeys(np.arange(n_classes-10,n_classes))  
-      for label in class_map:
-        class_map[label] =  []
-        
-      # Fill class_map
-      for item in data:
-        for label in class_map:
-          if item[1] == label:
-            class_map[label].append(item)
-
-      return class_map
       
-    def __printTime__(self,t0):
-      print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
-    
     # Run ICaRL
     def run(self,train_batches,test_batches,net,herding=True,classifier='NME',NME_mode='NME'):
       t0 = time.time()
