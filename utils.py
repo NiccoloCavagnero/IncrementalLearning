@@ -13,14 +13,14 @@ def updateNet(net, n_classes):
   weight = net.fc.weight.data
   bias = net.fc.bias.data
 
-  net.fc = nn.Linear(in_features, n_classes)
+  net.fc = torch.nn.Linear(in_features, n_classes)
   net.fc.weight.data[:out_features] = weight
   net.fc.bias.data[:out_features] = bias
 
   return net
   
 def getOneHot(target, n_classes):
-  one_hot = torch.zeros(target.shape[0], n_classes).to(self.device)
+  one_hot = torch.zeros(target.shape[0], n_classes)
   one_hot = one_hot.scatter(dim=1,index=target.long().view(-1,1),value=1.)
       
   return one_hot
