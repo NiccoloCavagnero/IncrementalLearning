@@ -26,7 +26,7 @@ def getOneHot(target, n_classes):
   return one_hot
   
 def augmentation(image):
-  image = F.pad(image,(4,4,4,4),value=-1)
+  image = F.pad(image,(4,4,4,4),value=0)
   x,y = np.random.randint(8),np.random.randint(8)
   image = image[:,x:x+32,y:y+32]
   if np.random.randint(2):
