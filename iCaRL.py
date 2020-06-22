@@ -8,6 +8,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torch.nn import BCEWithLogitsLoss
 
+from sklearn.metrics import accuracy_score
 from matplotlib import pyplot as plt
 
 from IncrementalLearning import utils
@@ -50,10 +51,8 @@ class iCaRL():
 
       loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
 
-      n_correct = 0.0
+      predictions, label_list = [], []
       print('   # NME Predicting ')
-      predictions = []
-      label_list = []
       for images, labels in loader:
         images = images.to(self.device)
         label_list += list(labels)
@@ -77,11 +76,7 @@ class iCaRL():
                   prediction = key
             predictions.append(prediction)
           
-      for label, prediction in zip(label_list,predictions):
-        if label == prediction:
-          n_correct += 1
-      
-      accuracy = n_correct/len(data)
+      accuracy = accuracy_score(label_list,predictions)
       print(f'   # NME Accuracy: {accuracy}')
 
       return accuracy, predictions, label_list
@@ -92,6 +87,7 @@ class iCaRL():
       net.eval()
       
       running_corrects = 0.0
+      label_list, predictions = [], []
       with torch.no_grad():
         loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
         for images, labels in loader:
@@ -103,25 +99,31 @@ class iCaRL():
           _, preds = torch.max(outputs.data, 1)
           # Update Corrects
           running_corrects += torch.sum(preds == labels.data).data.item()
+          
+          for prediction,label in zip(preds,labels):
+            predictions.append(np.array(prediction.cpu()))
+            label_list.append(np.array(label.cpu()))
 
         # Calculate Accuracy
         accuracy = running_corrects / len(data)
       
       print(f'   # FC Layer Accuracy: {accuracy}')
+      return accuracy, predictions, label_list
 
-      return accuracy
-
-    def __SKLClassifier__(self,data,exemplars,net,n_classes,classifier):
+    def __SKLClassifier__(self,data,batch,exemplars,net,n_classes,classifier):
       s = str(type(classifier)).split('.')[-1][:-2]
       print(f'\n ### {s} ###')
       net.eval()
       
-      X = []
-      y = []
+      X, y = [], []
       print('   # Extract features')
-      for key in exemplars:
-        loader = DataLoader(exemplars[key], batch_size=512, shuffle=False, num_workers=4, drop_last=False)
-        mean = torch.zeros((1,64),device=self.device)
+      for key in range(int(n_classes/10)):
+        if key in range(int(n_classes/10-1),int(n_classes/10)):
+          items = batch
+        else:
+          items = self.__formatExemplars__(exemplars)
+
+        loader = DataLoader(items, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
         for images, labels in loader:
           with torch.no_grad():
             images = images.to(self.device)
@@ -135,25 +137,21 @@ class iCaRL():
 
       loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
 
-      n_correct = 0.0
+      predictions, label_list = [], []
       print(f'   # {s} Predicting ')
       for images, labels in loader:
         images = images.to(self.device)
+        label_list += labels
         with torch.no_grad():
           outputs = net(images,features=True)
-          predictions = []
           for output in outputs:
             prediction = classifier.predict([np.array(output.cpu())])
             predictions.append(prediction)
           
-          for label, prediction in zip(labels,predictions):
-            if label == prediction[0]:
-              n_correct += 1
-      
-      accuracy = n_correct/len(data)
+      accuracy = accuracy_score(label_list,predictions)
       print(f'   # {s} Accuracy: {accuracy}')
 
-      return accuracy
+      return accuracy, predictions, label_list
  
     def __updateRepresentation__(self,data,exemplars,net,n_classes,fineTune=False):
         print('\n ### Update Representation ###')
@@ -222,7 +220,6 @@ class iCaRL():
 
           # Train loss of current epoch
           train_loss = running_loss / len(data)
-
           print('\r   # Epoch: {}/{}, LR = {},  Train loss = {}'.format(epoch+1, EPOCHS, optimizer.param_groups[0]['lr'], round(train_loss,5)),end='')
         print()
 
@@ -249,11 +246,11 @@ class iCaRL():
     def __constructExemplarSet__(self,data,n_classes,net):
         print('\n ### Construct Exemplar Set ###')
         m = int(self.memory/n_classes)
+        print(f'   # Exemplars per class: {m}')
 
         # Initialize lists of images and exemplars for each class
         class_map = utils.fillClassMap(data,n_classes)
         exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
-
         for label in exemplars:
           exemplars[label] = []
         
@@ -276,7 +273,6 @@ class iCaRL():
             mean /= len(class_map[label])
           
             w_t = mean
-
             for i in range(m):
               maximum = -99999
               ind_max = None
@@ -287,8 +283,7 @@ class iCaRL():
                   maximum = temp_tensor
                   ind_max = idx
 
-              w_t = w_t+mean-class_outputs[ind_max]
-                
+              w_t = w_t+mean-class_outputs[ind_max]    
               class_outputs.pop(ind_max)
        
               exemplars[label].append(class_map[label][ind_max])
@@ -317,8 +312,7 @@ class iCaRL():
     # Run ICaRL
     def run(self,train_batches,test_batches,net,herding=True,classifier='NME',NME_mode='NME'):
       t0 = time.time()
-      exemplars = {}
-      new_exemplars = []
+      exemplars, new_exemplars = {}, []
       accuracy_per_batch = []
       for idx, batch in enumerate(train_batches):
         print(f'\n##### BATCH {idx+1} #####')
@@ -332,9 +326,9 @@ class iCaRL():
         if classifier == 'NME':
           accuracy, predictions, labels = self.__NMEClassifier__(test_batches[idx],batch,exemplars,net,n_classes,NME_mode)
         elif classifier == 'FC':
-          accuracy = self.__FCClassifier__(test_batches[idx],net,n_classes)
+          accuracy, predictions, labels = self.__FCClassifier__(test_batches[idx],net,n_classes)
         else:
-          accuracy = self.__SKLClassifier__(test_batches[idx],exemplars,net,n_classes,classifier)
+          accuracy, predictions, labels = self.__SKLClassifier__(test_batches[idx],batch,exemplars,net,n_classes,classifier)
         accuracy_per_batch.append(accuracy)
         utils.printTime(t0)
         
