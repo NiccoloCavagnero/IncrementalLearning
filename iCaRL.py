@@ -358,8 +358,12 @@ class iCaRL():
         n_classes = (idx+1)*10
         net = self.__updateRepresentation__(batch,{},net,n_classes,fineTune)
         utils.printTime(t0)
-
-        accuracy_per_batch.append(self.__FCClassifier__(test_batches[idx],net,n_classes))
+        
+        accuracy, predictions, labels = self.__FCClassifier__(test_batches[idx],net,n_classes)
+        accuracy_per_batch.append(accuracy)
         utils.printTime(t0)
+        
+        if plot:
+            utils.confusionMatrix(labels,predictions)
 
       return accuracy_per_batch
