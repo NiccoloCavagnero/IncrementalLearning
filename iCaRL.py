@@ -232,10 +232,13 @@ class iCaRL():
       # Initialize lists of images and exemplars for each class
       class_map = utils.fillClassMap(data,n_classes)
       exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
+      for label in exemplars:
+        exemplars[label] = []
 
       for label in class_map:
         indexes = random.sample(range(len(class_map[label])),m)   
-        exemplars[label] = np.array(class_map[label])[indexes]
+        for idx in indexes:
+            exemplars[label].append(class_map[label][idx])
 
       return exemplars
     
