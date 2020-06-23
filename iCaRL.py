@@ -362,7 +362,7 @@ class iCaRL():
         accuracy_per_batch.append(accuracy)
         utils.printTime(t0)
         
-        if plot:
+        if self.plot:
             utils.confusionMatrix(labels,predictions)
 
       return accuracy_per_batch
