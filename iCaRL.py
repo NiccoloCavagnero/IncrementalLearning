@@ -242,6 +242,7 @@ class iCaRL():
 
       return exemplars
     
+    #herding
     def __constructExemplarSet__(self,data,n_classes,net):
         print('\n ### Construct Exemplar Set ###')
         m = int(self.memory/n_classes)
@@ -299,7 +300,8 @@ class iCaRL():
         exemplars[key] = exemplars[key][:m]
       
       return exemplars
-
+    
+    # dict to list
     def __formatExemplars__(self,exemplars):
       new_exemplars = []
       for key in exemplars:
