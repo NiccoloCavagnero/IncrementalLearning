@@ -47,9 +47,13 @@ def fillClassMap(data, n_classes):
 
   return class_map
   
-def confusionMatrix(labels, predictions):
+def confusionMatrix(labels, predictions, step):
+  ticks = np.arange(10,110,10)      
+  plt.figure(figsize=(8,8))
   cm = confusion_matrix(labels, predictions)
   sns.heatmap(np.log(cm+1),cmap='jet',cbar=False)
+  plt.xticks(ticks[:step+1],labels=ticks[:step+1])
+  plt.yticks(ticks[:step+1],labels=ticks[:step+1])
   plt.xlabel('Predicted Class')
   plt.ylabel('True Class')
   plt.show()
