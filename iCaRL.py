@@ -334,7 +334,7 @@ class iCaRL():
         utils.printTime(t0)
         
         if self.plot:
-          utils.confusionMatrix(labels,predictions)
+          utils.confusionMatrix(labels,predictions,idx)
 
         # Exemplars managing
         exemplars = self.__reduceExemplarSet__(exemplars,n_classes)
@@ -365,6 +365,6 @@ class iCaRL():
         utils.printTime(t0)
         
         if self.plot:
-            utils.confusionMatrix(labels,predictions)
+            utils.confusionMatrix(labels,predictions,idx)
 
       return accuracy_per_batch
