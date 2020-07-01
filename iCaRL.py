@@ -277,10 +277,10 @@ class iCaRL():
               maximum = -99999
               ind_max = None
               for idx,tensor in enumerate(class_outputs):
-                temp_tensor = w_t.dot(tensor)
+                dot = w_t.dot(tensor)
 
-                if temp_tensor > maximum:
-                  maximum = temp_tensor
+                if dot > maximum:
+                  maximum = dot
                   ind_max = idx
 
               w_t = w_t+mean-class_outputs[ind_max]    
