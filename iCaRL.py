@@ -14,11 +14,12 @@ from matplotlib import pyplot as plt
 from IncrementalLearning import utils
 
 class iCaRL():
-    def __init__(self,memory=2000,device='cuda',params=None,plot=False):
+    def __init__(self,memory=2000,device='cuda',params=None,plot=False,decay_policy=False):
         self.memory = memory
         self.device = device
         self.params = params
         self.plot = plot
+        self.decay_policy = decay_policy
 
     def __NMEClassifier__(self,data,batch,exemplars,net,n_classes,mode='NME'):
       print(f'\n ### NME ###')
@@ -160,6 +161,12 @@ class iCaRL():
         LR = self.params['LR']
         MOMENTUM = self.params['MOMENTUM']
         WEIGHT_DECAY = self.params['WEIGHT_DECAY']
+        
+        # Decrease the Weight Decay by a factor equal to one order of magnitude 
+        # less than the original value times the number of incremental steps
+        if self.decay_policy:
+            step = int(n_classes/10) - 1
+            WEIGHT_DECAY -= ( WEIGHT_DECAY / 10 * step ) 
 
         # Define Loss
         criterion = BCEWithLogitsLoss()
