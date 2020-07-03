@@ -205,7 +205,7 @@ class iCaRL():
 
             # Compute Losses
             if n_classes == 10 or fineTune:
-                tot_loss = criterion(outputs[:,n_classes-10:], labels[:,n_classes-10:])
+                tot_loss = criterion(outputs, labels)
             else:
                 with torch.no_grad():
                   old_outputs = torch.sigmoid(old_net(images))
