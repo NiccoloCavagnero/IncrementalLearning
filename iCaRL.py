@@ -166,7 +166,7 @@ class iCaRL():
         # less than the original value times the number of incremental steps
         if self.decay_policy:
             step = int(n_classes/10) - 1
-            WEIGHT_DECAY -= ( WEIGHT_DECAY / 10 * step ) 
+            WEIGHT_DECAY = np.linspace(WEIGHT_DECAY,WEIGHT_DECAY/10,10)[step]
 
         # Define Loss
         criterion = BCEWithLogitsLoss()
