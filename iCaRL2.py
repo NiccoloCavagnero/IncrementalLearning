@@ -173,7 +173,7 @@ class iCaRL2():
             outputs = torch.sigmoid(net(images))
 
             # Compute Losses
-            if n_classes == 10:
+            if n_classes == 10 or stabilize:
                 tot_loss = criterion(outputs,labels)
             else:
                 with torch.no_grad():
