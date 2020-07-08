@@ -62,20 +62,12 @@ class iCaRL2():
           outputs = net(images,features=True)
           for output in outputs:
             prediction = None
-            if mode == 'NME':
-              min_dist = 99999
-              for key in means:
-                dist = torch.dist(means[key],output)
-                if dist < min_dist:
-                  min_dist = dist
-                  prediction = key
-            elif mode == 'Cosine':
-              max_similarity = 0
-              for key in means:
-                cosine = torch.sum(means[key]*output)
-                if cosine > max_similarity:
-                  max_similarity = cosine
-                  prediction = key
+            min_dist = 99999
+            for key in means:
+              dist = torch.dist(means[key],output)
+              if dist < min_dist:
+                min_dist = dist
+                prediction = key          
             predictions.append(prediction)
           
       accuracy = accuracy_score(label_list,predictions)
@@ -353,7 +345,7 @@ class iCaRL2():
       return new_exemplars
       
     # Run ICaRL
-    def run(self,train_batches,test_batches,net,herding=True,classifier='NME',NME_mode='NME'):
+    def run(self,train_batches,test_batches,net,herding=True):
       t0 = time.time()
       exemplars = {}
       accuracy_per_batch = []
@@ -375,20 +367,14 @@ class iCaRL2():
         if idx != 0:
           self.__FCClassifier__(test_batches[idx],net,n_classes)
           utils.printTime(t0)
-          self.__NMEClassifier__(test_batches[idx],batch,exemplars,net,n_classes,NME_mode)
-          utils.printTime(t0)
           net = self.__stabilize__(exemplars,net,n_classes)
           utils.printTime(t0)
         
         # Classifier
-        if classifier == 'NME':
-          self.__FCClassifier__(test_batches[idx],net,n_classes)
-          utils.printTime(t0)
-          accuracy, predictions, labels = self.__NMEClassifier__(test_batches[idx],batch,exemplars,net,n_classes,NME_mode)
-        elif classifier == 'FC':
-          accuracy, predictions, labels = self.__FCClassifier__(test_batches[idx],net,n_classes)
-        else:
-          accuracy, predictions, labels = self.__SKLClassifier__(test_batches[idx],batch,exemplars,net,n_classes,classifier)
+        self.__FCClassifier__(test_batches[idx],net,n_classes)
+        utils.printTime(t0)
+        accuracy, predictions, labels = self.__NMEClassifier__(test_batches[idx],batch,exemplars,net,n_classes)
+    
         accuracy_per_batch.append(accuracy)
         utils.printTime(t0)
         
@@ -398,24 +384,5 @@ class iCaRL2():
         # Exemplars managing
         exemplars = self.__reduceExemplarSet__(exemplars,n_classes)
         utils.printTime(t0)
-
-      return accuracy_per_batch
-    
-    # Run LwF
-    def runLwF(self,train_batches,test_batches,net,fineTune=False):
-      t0 = time.time()
-      accuracy_per_batch = []
-      for idx, batch in enumerate(train_batches):
-        print(f'\n##### BATCH {idx+1} #####')
-        n_classes = (idx+1)*10
-        net = self.__updateRepresentation__(batch,{},net,n_classes,fineTune)
-        utils.printTime(t0)
-        
-        accuracy, predictions, labels = self.__FCClassifier__(test_batches[idx],net,n_classes)
-        accuracy_per_batch.append(accuracy)
-        utils.printTime(t0)
-        
-        if self.plot:
-            utils.confusionMatrix(labels,predictions,idx)
 
       return accuracy_per_batch
