@@ -123,10 +123,10 @@ class iCaRL2():
         elif stabilize:
           data = self.__formatExemplars__(exemplars)
           EPOCHS = self.params['EPOCHS2']
-          LR /= 10
+          LR = self.params['LR2']
           milestones = set([ int(EPOCHS/3), int(2*EPOCHS/3) ])
 
-        if self.decay_policy:
+        if self.decay_policy and not stabilize:
           step = int(n_classes/10) - 1
           WEIGHT_DECAY = np.linspace(WEIGHT_DECAY,WEIGHT_DECAY/10,10)[step]
           lambda_ += delta * ( step - 1 )
