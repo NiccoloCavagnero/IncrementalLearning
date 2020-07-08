@@ -224,7 +224,7 @@ class iCaRL2():
                 tot_loss = criterion(outputs,labels)
             else:
                 with torch.no_grad():
-                  old_outputs = self.__getOldOutputs__(n_classes,images)
+                  old_outputs = torch.sigmoid(self.__getOldOutputs__(n_classes,images))
                 class_loss = criterion(outputs,labels)
                 distill_loss = criterion(torch.pow(outputs[:,:n_classes-10],1/2),torch.pow(old_outputs,1/2))
                 tot_loss = class_loss + distill_loss #* lambda_
@@ -246,9 +246,9 @@ class iCaRL2():
       with torch.no_grad():
         for i in range(int(n_classes / 10)-1):
           if i == 0:
-            outputs = torch.sigmoid(self.teachers[i](images))
+            outputs = self.teachers[i](images)
           else:
-            current_outputs = torch.sigmoid(self.teachers[i](images))[:,i*10:i*10+10]
+            current_outputs = self.teachers[i](images)[:,i*10:i*10+10]
             outputs = torch.cat((outputs,current_outputs),1)
       return outputs
 
