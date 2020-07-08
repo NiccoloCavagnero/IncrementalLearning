@@ -22,7 +22,7 @@ class iCaRL2():
         self.decay_policy = decay_policy
         self.teachers = []
 
-    def __NMEClassifier__(self,data,batch,exemplars,net,n_classes,mode='NME'):
+    def __NMEClassifier__(self,data,batch,exemplars,net,n_classes):
       print(f'\n ### NME ###')
       means = dict.fromkeys(np.arange(n_classes))
       net.eval()
@@ -67,7 +67,7 @@ class iCaRL2():
               dist = torch.dist(means[key],output)
               if dist < min_dist:
                 min_dist = dist
-                prediction = key          
+                prediction = key
             predictions.append(prediction)
           
       accuracy = accuracy_score(label_list,predictions)
@@ -103,89 +103,41 @@ class iCaRL2():
       
       print(f'   # FC Layer Accuracy: {accuracy}')
       return accuracy, predictions, label_list
-
-    def __stabilize__(self,exemplars,net,n_classes):
-        print('\n ### Stabilize Network ###')
-        EPOCHS = self.params['EPOCHS2']
-        BATCH_SIZE = self.params['BATCH_SIZE']
-        LR = self.params['LR2']
-        MOMENTUM = self.params['MOMENTUM']
-        WEIGHT_DECAY = self.params['WEIGHT_DECAY']
-         
-        # Define Loss
-        criterion = MSELoss()
-
-        exemplars = self.__formatExemplars__(exemplars)
-        
-        # Define Dataloader
-        loader = DataLoader(exemplars, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
-
-        net = net.to(self.device)
-        optimizer = torch.optim.SGD(net.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
-        milestones = set([ int(EPOCHS/3), int(2*EPOCHS/3) ])
-        
-        for epoch in range(EPOCHS):
-         
-          # LR step down policy
-          if epoch in milestones:
-            for g in optimizer.param_groups:
-              g['lr'] = g['lr']/5
-   
-          # Set module in training mode
-          net.train() 
-
-          running_loss = 0.0
-          for images, labels in loader:
-            images = images.to(self.device)
-            images = torch.stack([ utils.augmentation(image) for image in images ])
-            
-            # Zero-ing the gradients
-            optimizer.zero_grad()
-            # Forward pass to the network
-            outputs = torch.sigmoid(net(images))
-            # Get One Hot Encoding for the labels
-            labels = utils.getOneHot(labels,n_classes)
-            labels = labels.to(self.device)
-
-            tot_loss = criterion(outputs,labels)   
-
-            # Update Running Loss         
-            running_loss += tot_loss.item() * images.size(0)
-
-            tot_loss.backward() 
-            optimizer.step() 
-
-          # Train loss of current epoch
-          train_loss = running_loss / len(exemplars)
-          print('\r   # Epoch: {}/{}, LR = {},  Train loss = {}'.format(epoch+1, EPOCHS, optimizer.param_groups[0]['lr'], round(train_loss,5)),end='')
-        print()
-
-        return net
  
-    def __updateRepresentation__(self,data,exemplars,net,n_classes,fineTune=False):
-        print('\n ### Update Representation ###')
+    def __train__(self,data,exemplars,net,n_classes,stabilize=False):
+        if not stabilize:
+          print('\n ### Update Representation ###')
+        else:
+          print('\n ### Stabilize Network ###')
         EPOCHS = self.params['EPOCHS']
         BATCH_SIZE = self.params['BATCH_SIZE']
         LR = self.params['LR']
         MOMENTUM = self.params['MOMENTUM']
         WEIGHT_DECAY = self.params['WEIGHT_DECAY']
+        milestones = set([ 49, 63 ])
         lambda_ = self.params['lambda']
-        
+        delta = self.params['delta']
+
+        if len(exemplars) != 0 and not stabilize:
+          data = data + self.__formatExemplars__(exemplars)
+        elif stabilize:
+          data = self.__formatExemplars__(exemplars)
+          EPOCHS = self.params['EPOCHS2']
+          LR /= 10
+          milestones = set([ int(EPOCHS/3), int(2*EPOCHS/3) ])
+
         if self.decay_policy:
           step = int(n_classes/10) - 1
           WEIGHT_DECAY = np.linspace(WEIGHT_DECAY,WEIGHT_DECAY/10,10)[step]
-          lambda_ += 0.1 * ( step - 1 )
+          lambda_ += delta * ( step - 1 )
 
         # Define Loss
         criterion = MSELoss()
-
-        if len(exemplars) != 0:
-          data = data + self.__formatExemplars__(exemplars)
         
         # Define Dataloader
         loader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
 
-        if n_classes != 10:
+        if n_classes != 10 and not stabilize:
           # Save network for distillation
           old_net = deepcopy(net)
           old_net.eval()
@@ -199,7 +151,7 @@ class iCaRL2():
         for epoch in range(EPOCHS):
          
           # LR step down policy
-          if epoch == 48 or epoch == 62:
+          if epoch+1 in milestones:
             for g in optimizer.param_groups:
               g['lr'] = g['lr']/5
    
@@ -208,19 +160,20 @@ class iCaRL2():
 
           running_loss = 0.0
           for images, labels in loader:
+            # Data augmentation
             images = images.to(self.device)
             images = torch.stack([ utils.augmentation(image) for image in images ])
-            
-            # Zero-ing the gradients
-            optimizer.zero_grad()
-            # Forward pass to the network
-            outputs = torch.sigmoid(net(images))
             # Get One Hot Encoding for the labels
             labels = utils.getOneHot(labels,n_classes)
             labels = labels.to(self.device)
 
+            # Zero-ing the gradients
+            optimizer.zero_grad()
+            # Forward pass to the network
+            outputs = torch.sigmoid(net(images))
+
             # Compute Losses
-            if n_classes == 10 or fineTune:
+            if n_classes == 10:
                 tot_loss = criterion(outputs,labels)
             else:
                 with torch.no_grad():
@@ -272,60 +225,7 @@ class iCaRL2():
             exemplars[label].append(class_map[label][idx])
 
       return exemplars
-    
-    #herding
-    def __constructExemplarSet__(self,data,n_classes,net):
-        print('\n ### Construct Exemplar Set ###')
-        if n_classes != 10:
-          m = int(self.memory/(n_classes-10))
-        else:
-          m = int(self.memory/(n_classes))
-        print(f'   # Exemplars per class: {m}')
-
-        # Initialize lists of images and exemplars for each class
-        class_map = utils.fillClassMap(data,n_classes)
-        exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
-        for label in exemplars:
-          exemplars[label] = []
-        
-        # Get and save net outputs for each class
-        net.eval()
-        for label in class_map:
-          print(f'\r   # Class: {label+1}',end='')
-          class_outputs = []
-          mean = 0
-          
-          # Compute class means
-          with torch.no_grad():
-            loader = DataLoader(class_map[label], batch_size=512, shuffle=False, num_workers=4, drop_last=False)
-            for images, _ in loader:
-                images = images.to(self.device)
-                outputs = net(images,features=True)
-                for output in outputs:
-                    class_outputs.append(output)
-                    mean += output
-            mean /= len(class_map[label])
-          
-            w_t = mean
-            for i in range(m):
-              maximum = -99999
-              ind_max = None
-              for idx,tensor in enumerate(class_outputs):
-                dot = w_t.dot(tensor)
-
-                if dot > maximum:
-                  maximum = dot
-                  ind_max = idx
-
-              w_t = w_t+mean-class_outputs[ind_max]    
-              class_outputs.pop(ind_max)
-       
-              exemplars[label].append(class_map[label][ind_max])
-              class_map[label].pop(ind_max)
-        print()
-
-        return exemplars
-
+  
     def __reduceExemplarSet__(self,exemplars,n_classes):
       print('\n ### Reduce Exemplar Set ###')
       m = int(self.memory/n_classes)
@@ -345,7 +245,7 @@ class iCaRL2():
       return new_exemplars
       
     # Run ICaRL
-    def run(self,train_batches,test_batches,net,herding=True):
+    def run(self,train_batches,test_batches,net):
       t0 = time.time()
       exemplars = {}
       accuracy_per_batch = []
@@ -354,20 +254,17 @@ class iCaRL2():
         n_classes = (idx+1)*10
 
         # Update Representation
-        net = self.__updateRepresentation__(batch,exemplars,net,n_classes)
+        net = self.__train__(batch,exemplars,net,n_classes)
         utils.printTime(t0)
         
-        if herding:
-          new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
-        else:
-          new_exemplars = self.__randomExemplarSet__(batch,n_classes)
+        new_exemplars = self.__randomExemplarSet__(batch,n_classes)
         exemplars.update(new_exemplars)
         utils.printTime(t0)
         
         if idx != 0:
           self.__FCClassifier__(test_batches[idx],net,n_classes)
           utils.printTime(t0)
-          net = self.__stabilize__(exemplars,net,n_classes)
+          net = self.__train__([],exemplars,net,n_classes,stabilize=True)
           utils.printTime(t0)
         
         # Classifier
