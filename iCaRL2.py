@@ -104,29 +104,12 @@ class iCaRL2():
       return accuracy, predictions, label_list
  
     def __train__(self,data,exemplars,net,n_classes,stabilize=False):
-                step = int(n_classes/10) - 1
-        BATCH_SIZE = self.params['BATCH_SIZE']
-        MOMENTUM = self.params['MOMENTUM']
-        WEIGHT_DECAY = self.params['WEIGHT_DECAY']
-        lambda_ = self.params['lambda']
-        delta = self.params['delta']
-        lambda_ += delta * ( step - 1 )
-
+        step = int(n_classes/10) - 1
         if not stabilize:
           print('\n ### Update Representation ###')
-          WEIGHT_DECAY = np.linspace(WEIGHT_DECAY,WEIGHT_DECAY/10,10)[step]
           EPOCHS = self.params['EPOCHS']
           LR = self.params['LR']
           milestones = set([ 49, 63 ])
-
-          if len(exemplars) != 0:
-            data = data + self.__formatExemplars__(exemplars)
-            # Save network for distillation
-            old_net = deepcopy(net)
-            old_net.eval()
-            self.teachers.append(old_net)
-            # Update network's last layer
-            net = utils.updateNet(net,n_classes)
         else:
           print('\n ### Stabilize Network ###')
           EPOCHS = self.params['EPOCHS2']
@@ -134,12 +117,31 @@ class iCaRL2():
           milestones = set([ int(EPOCHS/3), int(2*EPOCHS/3) ])
           data = self.__formatExemplars__(exemplars)
 
+        BATCH_SIZE = self.params['BATCH_SIZE']
+        MOMENTUM = self.params['MOMENTUM']
+        WEIGHT_DECAY = self.params['WEIGHT_DECAY']
+        lambda_ = self.params['lambda']
+        delta = self.params['delta']
+        lambda_ += delta * ( step - 1 )
+
+        if len(exemplars) != 0 and not stabilize:
+          data = data + self.__formatExemplars__(exemplars)
+          # Save network for distillation
+          old_net = deepcopy(net)
+          old_net.eval()
+          self.teachers.append(old_net)
+          # Update network's last layer
+          net = utils.updateNet(net,n_classes)
+
+        if not stabilize:
+          WEIGHT_DECAY = np.linspace(WEIGHT_DECAY,WEIGHT_DECAY/10,10)[step]
+
         # Define Loss
         criterion = MSELoss()
         
         # Define Dataloader
         loader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
-       
+        
         net = net.to(self.device)
         optimizer = torch.optim.SGD(net.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
         
@@ -173,9 +175,10 @@ class iCaRL2():
             else:
                 with torch.no_grad():
                   old_outputs = torch.sigmoid(self.__getOldOutputs__(n_classes,images))
+                  #old_outputs = 0.9 * old_outputs + 0.1 * torch.sigmoid(old_net(images))
                 class_loss = criterion(outputs,labels)
                 distill_loss = criterion(torch.pow(outputs[:,:n_classes-10],1/2),torch.pow(old_outputs,1/2))
-                tot_loss = class_loss + distill_loss #* lambda_
+                tot_loss = class_loss + distill_loss * lambda_
                 
             # Update Running Loss         
             running_loss += tot_loss.item() * images.size(0)
