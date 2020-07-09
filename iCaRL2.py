@@ -19,7 +19,6 @@ class iCaRL2():
         self.device = device
         self.params = params
         self.plot = plot
-        self.decay_policy = decay_policy
         self.teachers = []
 
     def __NMEClassifier__(self,data,batch,exemplars,net,n_classes):
