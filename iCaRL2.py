@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 from IncrementalLearning import utils
 
 class iCaRL2():
-    def __init__(self,memory=2000,device='cuda',params=None,plot=False,decay_policy=False):
+    def __init__(self,memory=2000,device='cuda',params=None,plot=False):
         self.memory = memory
         self.device = device
         self.params = params
