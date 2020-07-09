@@ -105,46 +105,42 @@ class iCaRL2():
       return accuracy, predictions, label_list
  
     def __train__(self,data,exemplars,net,n_classes,stabilize=False):
-        if not stabilize:
-          print('\n ### Update Representation ###')
-        else:
-          print('\n ### Stabilize Network ###')
-        EPOCHS = self.params['EPOCHS']
+                step = int(n_classes/10) - 1
         BATCH_SIZE = self.params['BATCH_SIZE']
-        LR = self.params['LR']
         MOMENTUM = self.params['MOMENTUM']
         WEIGHT_DECAY = self.params['WEIGHT_DECAY']
-        milestones = set([ 49, 63 ])
         lambda_ = self.params['lambda']
         delta = self.params['delta']
+        lambda_ += delta * ( step - 1 )
 
-        if len(exemplars) != 0 and not stabilize:
-          data = data + self.__formatExemplars__(exemplars)
-        elif stabilize:
-          data = self.__formatExemplars__(exemplars)
+        if not stabilize:
+          print('\n ### Update Representation ###')
+          WEIGHT_DECAY = np.linspace(WEIGHT_DECAY,WEIGHT_DECAY/10,10)[step]
+          EPOCHS = self.params['EPOCHS']
+          LR = self.params['LR']
+          milestones = set([ 49, 63 ])
+
+          if len(exemplars) != 0:
+            data = data + self.__formatExemplars__(exemplars)
+            # Save network for distillation
+            old_net = deepcopy(net)
+            old_net.eval()
+            self.teachers.append(old_net)
+            # Update network's last layer
+            net = utils.updateNet(net,n_classes)
+        else:
+          print('\n ### Stabilize Network ###')
           EPOCHS = self.params['EPOCHS2']
           LR = self.params['LR2']
           milestones = set([ int(EPOCHS/3), int(2*EPOCHS/3) ])
-
-        if self.decay_policy and not stabilize:
-          step = int(n_classes/10) - 1
-          WEIGHT_DECAY = np.linspace(WEIGHT_DECAY,WEIGHT_DECAY/10,10)[step]
-          lambda_ += delta * ( step - 1 )
+          data = self.__formatExemplars__(exemplars)
 
         # Define Loss
         criterion = MSELoss()
         
         # Define Dataloader
         loader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
-
-        if n_classes != 10 and not stabilize:
-          # Save network for distillation
-          old_net = deepcopy(net)
-          old_net.eval()
-          self.teachers.append(old_net)
-          # Update network's last layer
-          net = utils.updateNet(net,n_classes)
-        
+       
         net = net.to(self.device)
         optimizer = torch.optim.SGD(net.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
         
