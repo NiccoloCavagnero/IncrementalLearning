@@ -172,7 +172,6 @@ class iCaRL2():
             else:
                 with torch.no_grad():
                   old_outputs = torch.sigmoid(self.__getOldOutputs__(n_classes,images))
-                  #old_outputs = 0.9 * old_outputs + 0.1 * torch.sigmoid(old_net(images))
                 class_loss = criterion(outputs,labels)
                 distill_loss = criterion(torch.pow(outputs[:,:n_classes-10],1/2),torch.pow(old_outputs,1/2))
                 tot_loss = class_loss + distill_loss * lambda_
