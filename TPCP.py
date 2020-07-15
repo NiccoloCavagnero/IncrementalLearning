@@ -241,3 +241,4 @@ class TPCP():
         utils.printTime(t0)
 
       return accuracy_per_batch
+
