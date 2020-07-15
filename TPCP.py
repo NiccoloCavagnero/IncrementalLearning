@@ -20,9 +20,12 @@ class TPCP():
         self.nets = []
         self.discriminator = None
 
-    def __FCClassifier__(self,data,net,discrimination=False):
+    def __FCClassifier__(self,data,net,n_classes,discrimination=False):
       print(f'\n ### FC Layer ###')
-      print('   # FC Layer Predicting ')
+      if discrimination:
+        print('   # FC Layer Discriminating ')
+      else:
+        print('   # FC Layer Predicting ')
       net.eval()
       
       running_corrects = 0.0
@@ -34,6 +37,9 @@ class TPCP():
           
           if discrimination:
             labels = torch.tensor([ int(label/10) for label in labels ])
+          else:
+            labels = torch.tensor([ label-(n_classes-10) for label in labels ])
+
           labels = labels.to(self.device)
 
           outputs = torch.sigmoid(net(images))
@@ -52,12 +58,14 @@ class TPCP():
       print(f'   # FC Layer Accuracy: {accuracy}')
       return accuracy, predictions, label_list
 
-    def __trainTask__(self,data,net):
+    def __trainTask__(self,data,net,n_classes):
+        print('Training task')
         BATCH_SIZE = self.params['BATCH_SIZE']
         MOMENTUM = self.params['MOMENTUM']
         WEIGHT_DECAY = self.params['WEIGHT_DECAY']
         EPOCHS = self.params['EPOCHS']
         LR = self.params['LR']
+        milestones = set([ int(7/10*EPOCHS), int(9/10*EPOCHS) ])
 
         # Define Loss
         criterion = MSELoss() 
@@ -84,6 +92,7 @@ class TPCP():
             images = images.to(self.device)
             images = torch.stack([ utils.augmentation(image) for image in images ])
             # Get One Hot Encoding for the labels
+            labels = torch.tensor([ label-(n_classes-10) for label in labels ])
             labels = utils.getOneHot(labels,10)
             labels = labels.to(self.device)
 
@@ -111,11 +120,13 @@ class TPCP():
         return net
 
     def __trainDiscriminator__(self,net,exemplars,n_tasks):
+        print('Training discriminator')
         BATCH_SIZE = self.params['BATCH_SIZE']
         MOMENTUM = self.params['MOMENTUM']
         WEIGHT_DECAY = self.params['WEIGHT_DECAY']
-        EPOCHS = self.params['EPOCHS']
-        LR = self.params['LR']
+        EPOCHS = self.params['EPOCHS2']
+        LR = self.params['LR2']
+        milestones = set([ int(7/10*EPOCHS), int(9/10*EPOCHS) ])
 
         data = self.__formatExemplars__(exemplars)
 
@@ -146,7 +157,7 @@ class TPCP():
             images = torch.stack([ utils.augmentation(image) for image in images ])
             # Get One Hot Encoding for the labels
             labels = torch.tensor([ int(label/10) for label in labels ])
-            labels = utils.getOneHot(labels,n_classes)
+            labels = utils.getOneHot(labels,n_tasks)
             labels = labels.to(self.device)
 
             # Zero-ing the gradients
@@ -220,7 +231,7 @@ class TPCP():
         n_classes = (idx+1)*10
 
         # Update Representation
-        net = self.__trainTask__(batch,net)
+        net = self.__trainTask__(batch,net,n_classes)
         utils.printTime(t0)
         
         new_exemplars = self.__randomExemplarSet__(batch,n_classes)
@@ -234,7 +245,22 @@ class TPCP():
 
         # Classifier
         if idx != 0:
-            self.__FCClassifier__(test_batches[idx],self.discriminator,True)
+            _, _, tasks = self.__FCClassifier__(test_batches[idx],self.discriminator,n_classes,True)
+            dictionary = dict.fromkeys([i for i in range(idx+1)])
+
+            for key in dictionary:
+              dictionary[key] = []
+
+            for item, task in zip(test_batches[idx], tasks):
+              dictionary[int(task)].append(item)
+
+            tot_acc = 0.0
+
+            for task in dictionary:
+              acc, _, _ = self.__FCClassifier__(dictionary[idx],self.nets[task],n_classes,False)
+              tot_acc += acc
+
+            print(f"Total Accuracy: {tot_acc/(idx+1)}")
         
         # Exemplars managing
         exemplars = self.__reduceExemplarSet__(exemplars,n_classes)
