@@ -211,7 +211,7 @@ class TPCP():
 
       return new_exemplars
 
-    def __run__(self,train_batches,test_batches,net):
+    def run(self,train_batches,test_batches,net):
       t0 = time.time()
       exemplars = {}
       accuracy_per_batch = []
