@@ -5,7 +5,7 @@ from copy import deepcopy
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from torch.nn import MSELoss
+from torch.nn import MSELoss, BCELoss
 from sklearn.metrics import accuracy_score
 from matplotlib import pyplot as plt
 
@@ -20,16 +20,18 @@ class TPCP():
         self.nets = []
         self.discriminator = None
 
-    def __FCClassifier__(self,data,net,n_classes,discrimination=False):
-      print(f'\n ### FC Layer ###')
-      if discrimination:
-        print('   # FC Layer Discriminating ')
-      else:
-        print('   # FC Layer Predicting ')
+    def __FCClassifier__(self,data,net,task,discrimination=False,print_=True):
+      if print_:
+        print(f'\n ### FC Layer ###')
+        if discrimination:
+          print('   # FC Layer Discriminating ')
+        else:
+          print('   # FC Layer Predicting ')
       net.eval()
       
       running_corrects = 0.0
       label_list, predictions = [], []
+
       with torch.no_grad():
         loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
         for images, labels in loader:
@@ -38,7 +40,7 @@ class TPCP():
           if discrimination:
             labels = torch.tensor([ int(label/10) for label in labels ])
           else:
-            labels = torch.tensor([ label-(n_classes-10) for label in labels ])
+            labels = torch.tensor([ label-(task*10) for label in labels ])
 
           labels = labels.to(self.device)
 
@@ -55,7 +57,9 @@ class TPCP():
         # Calculate Accuracy
         accuracy = running_corrects / len(data)
       
-      print(f'   # FC Layer Accuracy: {accuracy}')
+      if print_:
+        print(f'   # FC Layer Accuracy: {accuracy}')
+
       return accuracy, predictions, label_list
 
     def __trainTask__(self,data,net,n_classes):
@@ -119,7 +123,7 @@ class TPCP():
 
         return net
 
-    def __trainDiscriminator__(self,net,exemplars,n_tasks):
+    def __trainDiscriminator__(self,net,exemplars,n_tasks,test_data):
         print('Training discriminator')
         BATCH_SIZE = self.params['BATCH_SIZE']
         MOMENTUM = self.params['MOMENTUM']
@@ -139,7 +143,7 @@ class TPCP():
 
         net = net.to(self.device)
         optimizer = torch.optim.SGD(net.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
-        
+
         for epoch in range(EPOCHS):
          
           # LR step down policy
@@ -176,10 +180,10 @@ class TPCP():
 
           # Train loss of current epoch
           train_loss = running_loss / len(data)
-          print('\r   # Epoch: {}/{}, LR = {},  Train loss = {}'.format(epoch+1, EPOCHS, optimizer.param_groups[0]['lr'], round(train_loss,5)),end='')
-        print()
+          acc, _, _ = self.__FCClassifier__(test_data,net,n_tasks,True,False)
 
-        discriminator = deepcopy(net)
+          print('\r   # Epoch: {}/{}, LR = {},  Train loss = {}, Test accuracy = {}'.format(epoch+1, EPOCHS, optimizer.param_groups[0]['lr'], round(train_loss,5), round(acc,5)),end='')
+        print()
 
         return net
 
@@ -222,45 +226,51 @@ class TPCP():
 
       return new_exemplars
 
-    def run(self,train_batches,test_batches,net):
+    def run(self,train_batches,test_batches,net,net2):
       t0 = time.time()
       exemplars = {}
       accuracy_per_batch = []
+    
       for idx, batch in enumerate(train_batches):
         print(f'\n##### BATCH {idx+1} #####')
         n_classes = (idx+1)*10
-
-        # Update Representation
-        net = self.__trainTask__(batch,net,n_classes)
-        utils.printTime(t0)
         
         new_exemplars = self.__randomExemplarSet__(batch,n_classes)
         exemplars.update(new_exemplars)
         utils.printTime(t0)
-        
-        if idx == 1:
-          self.discriminator = self.__trainDiscriminator__(net,exemplars,idx+1)
-        elif idx > 1:
-          self.discriminator = self.__trainDiscriminator__(self.discriminator,exemplars,idx+1)
 
-        # Classifier
         if idx != 0:
-            _, _, tasks = self.__FCClassifier__(test_batches[idx],self.discriminator,n_classes,True)
+          self.discriminator = self.__trainDiscriminator__(self.discriminator,exemplars,idx+1,test_batches[idx])
+          _, tasks, _ = self.__FCClassifier__(test_batches[idx],self.discriminator,n_classes,True)
+        
+        # Update Representation
+        #net = self.__trainTask__(batch,net,n_classes)
+        utils.printTime(t0)
+
+        if idx == 0:
+          self.discriminator = self.__trainTask__(batch,net,n_classes)
+        
+        # Classifier
+        '''
+        if idx != 0:
             dictionary = dict.fromkeys([i for i in range(idx+1)])
 
             for key in dictionary:
               dictionary[key] = []
 
             for item, task in zip(test_batches[idx], tasks):
+              print(task)
               dictionary[int(task)].append(item)
 
             tot_acc = 0.0
 
             for task in dictionary:
-              acc, _, _ = self.__FCClassifier__(dictionary[idx],self.nets[task],n_classes,False)
+
+              acc, _, _ = self.__FCClassifier__(dictionary[task],self.nets[task],task,False)
               tot_acc += acc
 
             print(f"Total Accuracy: {tot_acc/(idx+1)}")
+        '''
         
         # Exemplars managing
         exemplars = self.__reduceExemplarSet__(exemplars,n_classes)
