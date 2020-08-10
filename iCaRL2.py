@@ -7,7 +7,6 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torch.nn import MSELoss
 
-from sklearn.metrics import accuracy_score
 from matplotlib import pyplot as plt
 
 from IncrementalLearning import utils
