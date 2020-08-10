@@ -19,7 +19,7 @@ class iCaRL():
         self.params = params
         self.plot = plot
         
-    def __SKLClassifier__(self,data,batch,exemplars,net,n_classes,classifier):
+    def __SKLClassifier__(self,data,exemplars,net,n_classes,classifier):
       s = str(type(classifier)).split('.')[-1][:-2]
       print(f'\n ### {s} ###')
       net.eval()
@@ -27,10 +27,7 @@ class iCaRL():
       X, y = [], []
       print('   # Extract features')
       for key in range(int(n_classes/10)):
-        if key in range(int(n_classes/10-1),int(n_classes/10)):
-          items = batch
-        else:
-          items = self.__formatExemplars__(exemplars)
+        items = self.__formatExemplars__(exemplars)
 
         loader = DataLoader(items, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
         for images, labels in loader:
@@ -74,7 +71,7 @@ class iCaRL():
         criterion = BCEWithLogitsLoss()
 
         if len(exemplars) != 0:
-          data = data + exemplars
+          data = data + utils.formatExemplars(exemplars)
         
         # Define Dataloader
         loader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, num_workers=4, drop_last=True)
@@ -187,14 +184,14 @@ class iCaRL():
     # Run ICaRL
     def run(self,train_batches,test_batches,net,herding=True,classifier='NME',NME_mode='NME'):
       t0 = time.time()
-      exemplars, new_exemplars = {}, []
+      exemplars = []
       accuracy_per_batch = []
       for idx, batch in enumerate(train_batches):
         print(f'\n##### BATCH {idx+1} #####')
         n_classes = (idx+1)*10
 
         # Update Representation
-        net = self.__updateRepresentation__(batch,new_exemplars,net,n_classes)
+        net = self.__updateRepresentation__(batch,exemplars,net,n_classes)
         utils.printTime(t0)
         
         # Exemplars managing
@@ -203,7 +200,6 @@ class iCaRL():
         else:
           new_exemplars = utils.randomExemplarSet(self.memory,batch,n_classes)
         exemplars.update(new_exemplars)
-        new_exemplars = utils.formatExemplars(exemplars)
         utils.printTime(t0)
         
         # Classification
@@ -212,7 +208,7 @@ class iCaRL():
         elif classifier == 'FC':
           accuracy, predictions, labels = utils.FCClassifier(test_batches[idx],net,n_classes,self.device)
         else:
-          accuracy, predictions, labels = self.__SKLClassifier__(test_batches[idx],batch,exemplars,net,n_classes,classifier)
+          accuracy, predictions, labels = self.__SKLClassifier__(test_batches[idx],exemplars,net,n_classes,classifier)
         accuracy_per_batch.append(accuracy)
         utils.printTime(t0)
         
