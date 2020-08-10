@@ -66,7 +66,7 @@ def printTime(t0):
 
   ############################ CLASSIFIERS #################################
   
-def NMEClassifier(data,batch,exemplars,net,n_classes):
+def NMEClassifier(data,batch,exemplars,net,n_classes,device):
   print(f'\n ### NME ###')
   means = dict.fromkeys(np.arange(n_classes))
   net.eval()
@@ -81,10 +81,10 @@ def NMEClassifier(data,batch,exemplars,net,n_classes):
       items = exemplars[key]
         
     loader = DataLoader(items, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
-    mean = torch.zeros((1,64),device=self.device)
+    mean = torch.zeros((1,64),device=device)
     for images, _ in loader:
       with torch.no_grad():
-        images = images.to(self.device)
+        images = images.to(device)
         flipped_images = torch.flip(images,[3])
         images = torch.cat((images,flipped_images))
         
@@ -100,7 +100,7 @@ def NMEClassifier(data,batch,exemplars,net,n_classes):
   predictions, label_list = [], []
   print('   # NME Predicting ')
   for images, labels in loader:
-    images = images.to(self.device)
+    images = images.to(device)
     label_list += list(labels)
     with torch.no_grad():
       outputs = net(images,features=True)
@@ -119,7 +119,7 @@ def NMEClassifier(data,batch,exemplars,net,n_classes):
 
   return accuracy, predictions, label_list
 
-def FCClassifier(data,net,n_classes):
+def FCClassifier(data,net,n_classes,device):
   print(f'\n ### FC Layer ###')
   print('   # FC Layer Predicting ')
   net.eval()
@@ -129,8 +129,8 @@ def FCClassifier(data,net,n_classes):
   with torch.no_grad():
     loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
     for images, labels in loader:
-      images = images.to(self.device)
-      labels = labels.to(self.device)
+      images = images.to(device)
+      labels = labels.to(device)
 
       outputs = torch.sigmoid(net(images))
       # Get predictions
