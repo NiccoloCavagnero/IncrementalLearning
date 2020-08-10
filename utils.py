@@ -6,7 +6,7 @@ import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, accuracy_score
 import seaborn as sns
 from matplotlib import pyplot as plt
 
