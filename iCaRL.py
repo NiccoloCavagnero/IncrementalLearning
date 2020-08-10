@@ -208,9 +208,9 @@ class iCaRL():
         
         # Classification
         if classifier == 'NME':
-          accuracy, predictions, labels = utils.NMEClassifier(test_batches[idx],batch,exemplars,net,n_classes,NME_mode)
+          accuracy, predictions, labels = utils.NMEClassifier(test_batches[idx],batch,exemplars,net,n_classes,self.device)
         elif classifier == 'FC':
-          accuracy, predictions, labels = utils.FCClassifier(test_batches[idx],net,n_classes)
+          accuracy, predictions, labels = utils.FCClassifier(test_batches[idx],net,n_classes,self.device)
         else:
           accuracy, predictions, labels = self.__SKLClassifier__(test_batches[idx],batch,exemplars,net,n_classes,classifier)
         accuracy_per_batch.append(accuracy)
@@ -235,7 +235,7 @@ class iCaRL():
         net = self.__updateRepresentation__(batch,{},net,n_classes,fineTune)
         utils.printTime(t0)
         
-        accuracy, predictions, labels = utils.FCClassifier(test_batches[idx],net,n_classes)
+        accuracy, predictions, labels = utils.FCClassifier(test_batches[idx],net,n_classes,self.device)
         accuracy_per_batch.append(accuracy)
         utils.printTime(t0)
         
