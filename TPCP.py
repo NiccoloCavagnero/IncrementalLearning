@@ -205,7 +205,7 @@ class TPCP():
           _, tasks, _ = self.__FCClassifier__(test_batches[idx],self.discriminator,n_classes,True)
         
         # Update Representation
-        #net = self.__trainTask__(batch,net,n_classes)
+        net = self.__trainTask__(batch,net,n_classes)
         utils.printTime(t0)
 
         if idx == 0:
