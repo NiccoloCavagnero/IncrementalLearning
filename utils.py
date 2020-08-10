@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import time
 import torch
 from torch.nn import functional as F
@@ -16,7 +17,7 @@ def updateNet(net, n_classes):
   net.fc = torch.nn.Linear(in_features, n_classes)
   net.fc.weight.data[:out_features] = weight
   net.fc.bias.data[:out_features] = bias
-
+  
   return net
   
 def getOneHot(target, n_classes):
@@ -60,4 +61,129 @@ def confusionMatrix(labels, predictions, step):
   
 def printTime(t0):
   print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
+
+############################ CLASSIFIERS #################################
+  
+def NMEClassifier(data,batch,exemplars,net,n_classes):
+      print(f'\n ### NME ###')
+      means = dict.fromkeys(np.arange(n_classes))
+      net.eval()
+
+      batch_map = utils.fillClassMap(batch,n_classes)
+
+      print('   # Computing means ')
+      for key in range(n_classes):
+        if key in range(n_classes-10,n_classes):
+          items = batch_map[key]
+        else:
+          items = exemplars[key]
+        
+        loader = DataLoader(items, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
+        mean = torch.zeros((1,64),device=self.device)
+        for images, _ in loader:
+          with torch.no_grad():
+            images = images.to(self.device)
+            flipped_images = torch.flip(images,[3])
+            images = torch.cat((images,flipped_images))
+            
+            outputs = net(images,features=True)
+            
+            for output in outputs:
+              mean += output
+        mean = mean / ( 2 * len(items) ) 
+        means[key] = mean / mean.norm()
+
+      loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
+
+      predictions, label_list = [], []
+      print('   # NME Predicting ')
+      for images, labels in loader:
+        images = images.to(self.device)
+        label_list += list(labels)
+        with torch.no_grad():
+          outputs = net(images,features=True)
+          for output in outputs:
+            prediction = None
+            min_dist = 99999
+            for key in means:
+              dist = torch.dist(means[key],output)
+              if dist < min_dist:
+                min_dist = dist
+                prediction = key
+            predictions.append(prediction)
+          
+      accuracy = accuracy_score(label_list,predictions)
+      print(f'   # NME Accuracy: {accuracy}')
+
+      return accuracy, predictions, label_list
+
+    def FCClassifier(data,net,n_classes):
+      print(f'\n ### FC Layer ###')
+      print('   # FC Layer Predicting ')
+      net.eval()
+      
+      running_corrects = 0.0
+      label_list, predictions = [], []
+      with torch.no_grad():
+        loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
+        for images, labels in loader:
+          images = images.to(self.device)
+          labels = labels.to(self.device)
+
+          outputs = torch.sigmoid(net(images))
+          # Get predictions
+          _, preds = torch.max(outputs.data, 1)
+          # Update Corrects
+          running_corrects += torch.sum(preds == labels.data).data.item()
+          
+          for prediction,label in zip(preds,labels):
+            predictions.append(np.array(prediction.cpu()))
+            label_list.append(np.array(label.cpu()))
+
+        # Calculate Accuracy
+        accuracy = running_corrects / len(data)
+      
+      print(f'   # FC Layer Accuracy: {accuracy}')
+      return accuracy, predictions, label_list
+    
+    ############################ EXEMPLARS #################################
+    
+    def randomExemplarSet(memory,data,n_classes):
+      print('\n ### Construct Random Exemplar Set ###')
+      if n_classes != 10:
+        m = int(memory/(n_classes-10))
+      else:
+        m = int(memory/(n_classes))
+      print(f'   # Exemplars per class: {m}')
+
+      # Initialize lists of images and exemplars for each class
+      class_map = utils.fillClassMap(data,n_classes)
+      exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
+      for label in exemplars:
+        exemplars[label] = []
+
+      for label in class_map:
+        indexes = random.sample(range(len(class_map[label])),m)   
+        for idx in indexes:
+            exemplars[label].append(class_map[label][idx])
+
+      return exemplars
+  
+    def reduceExemplarSet(memory,exemplars,n_classes):
+      print('\n ### Reduce Exemplar Set ###')
+      m = int(memory/n_classes)
+      print(f'   # Exemplars per class: {m}')
+      for key in exemplars:
+        exemplars[key] = exemplars[key][:m]
+      
+      return exemplars
+    
+    # dict to list
+    def formatExemplars(exemplars):
+      new_exemplars = []
+      for key in exemplars:
+        for item in exemplars[key]:
+          new_exemplars.append([item[0],item[1]])
+
+      return new_exemplars
     
