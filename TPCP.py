@@ -209,33 +209,30 @@ class TPCP():
         utils.printTime(t0)
 
         if idx == 0:
-          self.discriminator = self.__trainTask__(batch,net,n_classes)
+            self.discriminator = self.__trainTask__(batch,net,n_classes)
         
         # Classifier
-        '''
-        if idx != 0:
-            dictionary = dict.fromkeys([i for i in range(idx+1)])
-
-            for key in dictionary:
-              dictionary[key] = []
+        else:
+            task_dict = dict.fromkeys([i for i in range(idx+1)])
+            for key in task_dict:
+              task_dict[key] = []
 
             for item, task in zip(test_batches[idx], tasks):
               print(task)
-              dictionary[int(task)].append(item)
+              task_dict[int(task)].append(item)
 
             tot_acc = 0.0
-
-            for task in dictionary:
-
-              acc, _, _ = self.__FCClassifier__(dictionary[task],self.nets[task],task,False)
-              tot_acc += acc
+            
+            for task in task_dict:
+              acc, _, _ = self.__FCClassifier__(task_dict[task],self.nets[task],task,False)
+              tot_acc += acc * len(task_dict[task])
+            
+            tot_acc /= len(test_batches[idx])
 
             print(f"Total Accuracy: {tot_acc/(idx+1)}")
-        '''
         
         # Exemplars managing
         exemplars = utils.reduceExemplarSet(self.memory,exemplars,n_classes)
         utils.printTime(t0)
 
       return accuracy_per_batch
-
