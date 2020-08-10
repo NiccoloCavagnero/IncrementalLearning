@@ -136,15 +136,15 @@ class iCaRL2():
         
         # Stabilization 
         if idx != 0:
-          utils.FCClassifier(test_batches[idx],net,n_classes)
+          utils.FCClassifier(test_batches[idx],net,n_classes,self.device)
           utils.printTime(t0)
           net = self.__train__([],exemplars,net,n_classes,stabilize=True)
           utils.printTime(t0)
         
         # Classification
-        utils.FCClassifier(test_batches[idx],net,n_classes)
+        utils.FCClassifier(test_batches[idx],net,n_classes,self.device)
         utils.printTime(t0)
-        accuracy, predictions, labels = utils.NMEClassifier(test_batches[idx],batch,exemplars,net,n_classes)
+        accuracy, predictions, labels = utils.NMEClassifier(test_batches[idx],batch,exemplars,net,n_classes,self.device)
         accuracy_per_batch.append(accuracy)
         utils.printTime(t0)
         
