@@ -132,7 +132,7 @@ class TPCP():
         LR = self.params['LR2']
         milestones = set([ int(7/10*EPOCHS), int(9/10*EPOCHS) ])
 
-        data = self.__formatExemplars__(exemplars)
+        data = utils.formatExemplars(exemplars)
 
         # Define Loss
         criterion = MSELoss() 
@@ -187,45 +187,6 @@ class TPCP():
 
         return net
 
-    def __randomExemplarSet__(self,data,n_classes):
-      print('\n ### Construct Random Exemplar Set ###')
-      if n_classes != 10:
-        m = int(self.memory/(n_classes-10))
-      else:
-        m = int(self.memory/(n_classes))
-      print(f'   # Exemplars per class: {m}')
-
-      # Initialize lists of images and exemplars for each class
-      class_map = utils.fillClassMap(data,n_classes)
-      exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
-      for label in exemplars:
-        exemplars[label] = []
-
-      for label in class_map:
-        indexes = random.sample(range(len(class_map[label])),m)   
-        for idx in indexes:
-            exemplars[label].append(class_map[label][idx])
-
-      return exemplars
-  
-    def __reduceExemplarSet__(self,exemplars,n_classes):
-      print('\n ### Reduce Exemplar Set ###')
-      m = int(self.memory/n_classes)
-      print(f'   # Exemplars per class: {m}')
-      for key in exemplars:
-        exemplars[key] = exemplars[key][:m]
-      
-      return exemplars
-    
-    # dict to list
-    def __formatExemplars__(self,exemplars):
-      new_exemplars = []
-      for key in exemplars:
-        for item in exemplars[key]:
-          new_exemplars.append([item[0],item[1]])
-
-      return new_exemplars
-
     def run(self,train_batches,test_batches,net,net2):
       t0 = time.time()
       exemplars = {}
@@ -235,7 +196,7 @@ class TPCP():
         print(f'\n##### BATCH {idx+1} #####')
         n_classes = (idx+1)*10
         
-        new_exemplars = self.__randomExemplarSet__(batch,n_classes)
+        new_exemplars = utils.randomExemplarSet(self.memory,batch,n_classes)
         exemplars.update(new_exemplars)
         utils.printTime(t0)
 
@@ -273,7 +234,7 @@ class TPCP():
         '''
         
         # Exemplars managing
-        exemplars = self.__reduceExemplarSet__(exemplars,n_classes)
+        exemplars = utils.reduceExemplarSet(self.memory,exemplars,n_classes)
         utils.printTime(t0)
 
       return accuracy_per_batch
