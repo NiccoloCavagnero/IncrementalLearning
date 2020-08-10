@@ -14,103 +14,12 @@ from matplotlib import pyplot as plt
 from IncrementalLearning import utils
 
 class iCaRL():
-    def __init__(self,memory=2000,device='cuda',params=None,plot=False,decay_policy=False):
+    def __init__(self,memory=2000,device='cuda',params=None,plot=False):
         self.memory = memory
         self.device = device
         self.params = params
         self.plot = plot
-        self.decay_policy = decay_policy
-
-    def __NMEClassifier__(self,data,batch,exemplars,net,n_classes,mode='NME'):
-      print(f'\n ### NME ###')
-      means = dict.fromkeys(np.arange(n_classes))
-      net.eval()
-
-      batch_map = utils.fillClassMap(batch,n_classes)
-
-      print('   # Computing means ')
-      for key in range(n_classes):
-        if key in range(n_classes-10,n_classes):
-          items = batch_map[key]
-        else:
-          items = exemplars[key]
         
-        loader = DataLoader(items, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
-        mean = torch.zeros((1,64),device=self.device)
-        for images, _ in loader:
-          with torch.no_grad():
-            images = images.to(self.device)
-            flipped_images = torch.flip(images,[3])
-            images = torch.cat((images,flipped_images))
-            
-            outputs = net(images,features=True)
-            
-            for output in outputs:
-              mean += output
-        mean = mean / ( 2 * len(items) ) 
-        means[key] = mean / mean.norm()
-
-      loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
-
-      predictions, label_list = [], []
-      print('   # NME Predicting ')
-      for images, labels in loader:
-        images = images.to(self.device)
-        label_list += list(labels)
-        with torch.no_grad():
-          outputs = net(images,features=True)
-          for output in outputs:
-            prediction = None
-            if mode == 'NME':
-              min_dist = 99999
-              for key in means:
-                dist = torch.dist(means[key],output)
-                if dist < min_dist:
-                  min_dist = dist
-                  prediction = key
-            elif mode == 'Cosine':
-              max_similarity = 0
-              for key in means:
-                cosine = torch.sum(means[key]*output)
-                if cosine > max_similarity:
-                  max_similarity = cosine
-                  prediction = key
-            predictions.append(prediction)
-          
-      accuracy = accuracy_score(label_list,predictions)
-      print(f'   # NME Accuracy: {accuracy}')
-
-      return accuracy, predictions, label_list
-
-    def __FCClassifier__(self,data,net,n_classes):
-      print(f'\n ### FC Layer ###')
-      print('   # FC Layer Predicting ')
-      net.eval()
-      
-      running_corrects = 0.0
-      label_list, predictions = [], []
-      with torch.no_grad():
-        loader = DataLoader(data, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
-        for images, labels in loader:
-          images = images.to(self.device)
-          labels = labels.to(self.device)
-
-          outputs = torch.sigmoid(net(images))
-          # Get predictions
-          _, preds = torch.max(outputs.data, 1)
-          # Update Corrects
-          running_corrects += torch.sum(preds == labels.data).data.item()
-          
-          for prediction,label in zip(preds,labels):
-            predictions.append(np.array(prediction.cpu()))
-            label_list.append(np.array(label.cpu()))
-
-        # Calculate Accuracy
-        accuracy = running_corrects / len(data)
-      
-      print(f'   # FC Layer Accuracy: {accuracy}')
-      return accuracy, predictions, label_list
-
     def __SKLClassifier__(self,data,batch,exemplars,net,n_classes,classifier):
       s = str(type(classifier)).split('.')[-1][:-2]
       print(f'\n ### {s} ###')
@@ -161,12 +70,6 @@ class iCaRL():
         LR = self.params['LR']
         MOMENTUM = self.params['MOMENTUM']
         WEIGHT_DECAY = self.params['WEIGHT_DECAY']
-        
-        # Decrease the Weight Decay by a factor equal to one order of magnitude 
-        # less than the original value times the number of incremental steps
-        if self.decay_policy:
-            step = int(n_classes/10) - 1
-            WEIGHT_DECAY = np.linspace(WEIGHT_DECAY,WEIGHT_DECAY/10,10)[step]
 
         # Define Loss
         criterion = BCEWithLogitsLoss()
@@ -231,25 +134,8 @@ class iCaRL():
         print()
 
         return net
-
-    def __randomExemplarSet__(self,data,n_classes):
-      print('\n ### Construct Random Exemplar Set ###')
-      m = int(self.memory/n_classes)
-
-      # Initialize lists of images and exemplars for each class
-      class_map = utils.fillClassMap(data,n_classes)
-      exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
-      for label in exemplars:
-        exemplars[label] = []
-
-      for label in class_map:
-        indexes = random.sample(range(len(class_map[label])),m)   
-        for idx in indexes:
-            exemplars[label].append(class_map[label][idx])
-
-      return exemplars
-    
-    #herding
+ 
+    # herding
     def __constructExemplarSet__(self,data,n_classes,net):
         print('\n ### Construct Exemplar Set ###')
         m = int(self.memory/n_classes)
@@ -298,25 +184,7 @@ class iCaRL():
         print()
 
         return exemplars
-
-    def __reduceExemplarSet__(self,exemplars,n_classes):
-      print('\n ### Reduce Exemplar Set ###')
-      m = int(self.memory/n_classes)
-      print(f'   # Exemplars per class: {m}')
-      for key in exemplars:
-        exemplars[key] = exemplars[key][:m]
-      
-      return exemplars
     
-    # dict to list
-    def __formatExemplars__(self,exemplars):
-      new_exemplars = []
-      for key in exemplars:
-        for item in exemplars[key]:
-          new_exemplars.append([item[0],item[1]])
-
-      return new_exemplars
-      
     # Run ICaRL
     def run(self,train_batches,test_batches,net,herding=True,classifier='NME',NME_mode='NME'):
       t0 = time.time()
@@ -332,9 +200,9 @@ class iCaRL():
         
         # Classifier
         if classifier == 'NME':
-          accuracy, predictions, labels = self.__NMEClassifier__(test_batches[idx],batch,exemplars,net,n_classes,NME_mode)
+          accuracy, predictions, labels = utils.NMEClassifier(test_batches[idx],batch,exemplars,net,n_classes,NME_mode)
         elif classifier == 'FC':
-          accuracy, predictions, labels = self.__FCClassifier__(test_batches[idx],net,n_classes)
+          accuracy, predictions, labels = utils.FCClassifier(test_batches[idx],net,n_classes)
         else:
           accuracy, predictions, labels = self.__SKLClassifier__(test_batches[idx],batch,exemplars,net,n_classes,classifier)
         accuracy_per_batch.append(accuracy)
@@ -344,15 +212,15 @@ class iCaRL():
           utils.confusionMatrix(labels,predictions,idx)
 
         # Exemplars managing
-        exemplars = self.__reduceExemplarSet__(exemplars,n_classes)
+        exemplars = utils.reduceExemplarSet(self.memory,exemplars,n_classes)
         utils.printTime(t0)
         
         if herding:
           new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
         else:
-          new_exemplars = self.__randomExemplarSet__(batch,n_classes)
+          new_exemplars = utils.randomExemplarSet(self.memory,batch,n_classes)
         exemplars.update(new_exemplars)
-        new_exemplars = self.__formatExemplars__(exemplars)
+        new_exemplars = utils.formatExemplars(exemplars)
         utils.printTime(t0)
 
       return accuracy_per_batch
@@ -367,7 +235,7 @@ class iCaRL():
         net = self.__updateRepresentation__(batch,{},net,n_classes,fineTune)
         utils.printTime(t0)
         
-        accuracy, predictions, labels = self.__FCClassifier__(test_batches[idx],net,n_classes)
+        accuracy, predictions, labels = utils.FCClassifier(test_batches[idx],net,n_classes)
         accuracy_per_batch.append(accuracy)
         utils.printTime(t0)
         
