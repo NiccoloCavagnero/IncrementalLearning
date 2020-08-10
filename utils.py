@@ -69,7 +69,7 @@ def NMEClassifier(data,batch,exemplars,net,n_classes):
   means = dict.fromkeys(np.arange(n_classes))
   net.eval()
 
-  batch_map = utils.fillClassMap(batch,n_classes)
+  batch_map = fillClassMap(batch,n_classes)
 
   print('   # Computing means ')
   for key in range(n_classes):
@@ -157,7 +157,7 @@ def randomExemplarSet(memory,data,n_classes):
   print(f'   # Exemplars per class: {m}')
 
   # Initialize lists of images and exemplars for each class
-  class_map = utils.fillClassMap(data,n_classes)
+  class_map = fillClassMap(data,n_classes)
   exemplars = dict.fromkeys(np.arange(n_classes-10,n_classes))
   for label in exemplars:
     exemplars[label] = []
