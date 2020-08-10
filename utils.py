@@ -63,8 +63,12 @@ def confusionMatrix(labels, predictions, step):
   
 def printTime(t0):
   print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
+  
+def CELoss(outputs,targets):
+  logsoftmax = torch.nn.LogSoftmax()
+  return torch.mean(torch.sum(- targets * logsoftmax(outputs),1))
 
-  ############################ CLASSIFIERS #################################
+############################ CLASSIFIERS #################################
   
 def NMEClassifier(data,batch,exemplars,net,n_classes,device):
   print(f'\n ### NME ###')
