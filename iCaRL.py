@@ -198,7 +198,16 @@ class iCaRL():
         net = self.__updateRepresentation__(batch,new_exemplars,net,n_classes)
         utils.printTime(t0)
         
-        # Classifier
+        # Exemplars managing
+        if herding:
+          new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
+        else:
+          new_exemplars = utils.randomExemplarSet(self.memory,batch,n_classes)
+        exemplars.update(new_exemplars)
+        new_exemplars = utils.formatExemplars(exemplars)
+        utils.printTime(t0)
+        
+        # Classification
         if classifier == 'NME':
           accuracy, predictions, labels = utils.NMEClassifier(test_batches[idx],batch,exemplars,net,n_classes,NME_mode)
         elif classifier == 'FC':
@@ -213,14 +222,6 @@ class iCaRL():
 
         # Exemplars managing
         exemplars = utils.reduceExemplarSet(self.memory,exemplars,n_classes)
-        utils.printTime(t0)
-        
-        if herding:
-          new_exemplars = self.__constructExemplarSet__(batch,n_classes,net)
-        else:
-          new_exemplars = utils.randomExemplarSet(self.memory,batch,n_classes)
-        exemplars.update(new_exemplars)
-        new_exemplars = utils.formatExemplars(exemplars)
         utils.printTime(t0)
 
       return accuracy_per_batch
