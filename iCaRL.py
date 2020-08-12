@@ -184,7 +184,7 @@ class iCaRL():
     # Run ICaRL
     def run(self,train_batches,test_batches,net,herding=True,classifier='NME',NME_mode='NME'):
       t0 = time.time()
-      exemplars = []
+      exemplars = {}
       accuracy_per_batch = []
       for idx, batch in enumerate(train_batches):
         print(f'\n##### BATCH {idx+1} #####')
