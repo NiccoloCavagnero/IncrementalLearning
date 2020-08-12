@@ -27,7 +27,7 @@ class iCaRL():
       X, y = [], []
       print('   # Extract features')
       for key in range(int(n_classes/10)):
-        items = self.__formatExemplars__(exemplars)
+        items = utils.formatExemplars(exemplars)
 
         loader = DataLoader(items, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
         for images, labels in loader:
