@@ -7,8 +7,10 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from sklearn.metrics import confusion_matrix, accuracy_score
-import seaborn as sns
+
 from matplotlib import pyplot as plt
+import seaborn as sns
+import plotly.graph_objects as go
 
 def updateNet(net, n_classes):
   in_features = net.fc.in_features
