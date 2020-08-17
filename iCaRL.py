@@ -182,7 +182,7 @@ class iCaRL():
         return exemplars
     
     # Run ICaRL
-    def run(self,train_batches,test_batches,net,herding=True,classifier='NME',NME_mode='NME'):
+    def run(self,train_batches,test_batches,net,herding=True,classifier='NME'):
       t0 = time.time()
       exemplars = {}
       accuracy_per_batch = []
