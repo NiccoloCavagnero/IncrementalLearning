@@ -60,6 +60,45 @@ def confusionMatrix(labels, predictions, step):
   plt.xlabel('Predicted Class')
   plt.ylabel('True Class')
   plt.show()
+
+ 
+def accuracyPlot(accuracies, std, names, title):
+
+    fig = go.Figure()
+    for idx, el in enumerate(names):
+
+        print(accuracies[idx])
+        fig.add_trace(go.Scatter(
+            x=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            y=accuracies[idx],
+            error_y=dict(
+                type='data',
+                array=std[idx]
+            ),
+            name=el
+        ))
+
+    array = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+    for i in array:
+        fig.add_shape(
+            dict(
+                type="line",
+                x0=0,
+                y0=i,
+                x1=10,
+                y1=i,
+                line=dict(
+                    color="Grey",
+                    width=1,
+                    dash="dot",
+                )
+            ))
+    fig['layout']['yaxis'].update(title='Accuracy', range=[0, 1], dtick=0.1, tickcolor='black', ticks="outside",
+                                  tickwidth=1, ticklen=5)
+    fig['layout']['xaxis'].update(title='Number of classes', range=[0.5, 10.5], dtick=1, ticks="outside", tickwidth=0)
+    fig['layout'].update(title=title, title_x=0.5, width=700)
+    fig['layout'].update(plot_bgcolor='rgb(256,256,256)')
+    fig.show()
   
 def printTime(t0):
   print(f'\n   # Elapsed time: {round((time.time()-t0)/60,2)}')
