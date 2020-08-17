@@ -26,17 +26,16 @@ class iCaRL():
       
       X, y = [], []
       print('   # Extract features')
-      for key in range(int(n_classes/10)):
-        items = utils.formatExemplars(exemplars)
-
-        loader = DataLoader(items, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
-        for images, labels in loader:
-          with torch.no_grad():
-            images = images.to(self.device)
-            outputs = net(images,features=True)
-            for output,label in zip(outputs,labels):
-              X.append(np.array(output.cpu()))
-              y.append(np.array(label))
+      items = utils.formatExemplars(exemplars)
+      loader = DataLoader(items, batch_size=512, shuffle=False, num_workers=4, drop_last=False)
+      
+      with torch.no_grad():
+        for images, labels in loader: 
+          images = images.to(self.device)
+          outputs = net(images,features=True)
+          for output,label in zip(outputs,labels):
+            X.append(np.array(output.cpu()))
+            y.append(np.array(label))
     
       print(f'   # {s} Fitting ')
       classifier.fit(X,y)
