@@ -96,7 +96,7 @@ def accuracyPlot(accuracies, std, names, title):
     fig['layout']['yaxis'].update(title='Accuracy', range=[0, 1], dtick=0.1, tickcolor='black', ticks="outside",
                                   tickwidth=1, ticklen=5)
     fig['layout']['xaxis'].update(title='Number of classes', range=[0, 100.5], dtick=10, ticks="outside", tickwidth=0)
-    fig['layout'].update(height=900, width=800)
+    fig['layout'].update(height=700, width=900)
     fig['layout'].update(plot_bgcolor='rgb(256,256,256)')
     fig.show()
   
