@@ -68,8 +68,6 @@ def accuracyPlot(accuracies, std, names, title):
 
     fig = go.Figure()
     for idx, el in enumerate(names):
-
-        print(accuracies[idx])
         fig.add_trace(go.Scatter(
             x=[10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
             y=accuracies[idx],
@@ -95,10 +93,10 @@ def accuracyPlot(accuracies, std, names, title):
                     dash="dot",
                 )
             ))
-fig['layout']['yaxis'].update(title='Accuracy', range=[0, 1], dtick=0.1, tickcolor='black', ticks="outside",
+    fig['layout']['yaxis'].update(title='Accuracy', range=[0, 1], dtick=0.1, tickcolor='black', ticks="outside",
                                   tickwidth=1, ticklen=5)
     fig['layout']['xaxis'].update(title='Number of classes', range=[0, 100.5], dtick=10, ticks="outside", tickwidth=0)
-    fig['layout'].update(height=900, width=900)
+    fig['layout'].update(height=900, width=800)
     fig['layout'].update(plot_bgcolor='rgb(256,256,256)')
     fig.show()
   
